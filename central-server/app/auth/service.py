@@ -1,0 +1,21 @@
+from app.models import User  # Beanie Document with hashed_password field
+from app.utils.security import verify_password
+from typing import Optional
+
+
+async def get_user(username: str) -> Optional[User]:
+    user = await User.find_one(User.username == username)
+    return user
+
+async def get_user_by_email(email: str) -> Optional[User]:
+    user = await User.find_one(User.email == email)
+    return user
+
+
+async def authenticate_user(username: str, password: str) -> Optional[User]:
+    user = await get_user(username)
+    if not user:
+        return None
+    if not verify_password(password, user.hashed_password):
+        return None
+    return user

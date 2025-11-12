@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  fastapi-server:
+    build: ./central-server
+    container_name: vigilhawk-central-server
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URI: ${MONGO_URI}
+      SECRET_KEY: ${SECRET_KEY}
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data:/data/db
