@@ -1,0 +1,5 @@
+[tool.pyright]
+typeCheckingMode = "standard"
+pythonVersion = "3.11.5"
+venv = "venv"
+venvPath = "."

@@ -50,23 +50,18 @@ async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register_user(user_create: UserCreate):
-    # Check if user already exists by email
     existing_user = await get_user_by_email(user_create.email)
     if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Email already registered.")
 
-    # Hash the password securely
     hashed_password = get_password_hash(user_create.password)
 
-    # Create the User document/model
     new_user = User(
         username=user_create.username,
         email=user_create.email,
         hashed_password=hashed_password
     )
 
-    # Insert the user into the database (await if async)
     await new_user.insert()
 
-    # Return the user data (Pydantic model UserOut will exclude sensitive info)
     return new_user
