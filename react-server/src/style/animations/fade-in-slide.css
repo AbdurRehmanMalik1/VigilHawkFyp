@@ -1,0 +1,30 @@
+@keyframes fade-in-slide-up {
+  from {
+    opacity: 0.2;
+    transform: translateY(50px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-slide-up-fast {
+  animation: fade-in-slide-up 0.5s ease-out both;
+}
+
+/* Medium: 1s */
+.animate-fade-in-slide-up-medium {
+  animation: fade-in-slide-up 1s ease-out both;
+}
+
+/* Slow: 1.5s */
+.animate-fade-in-slide-up-slow {
+  animation: fade-in-slide-up 1.5s ease-out both;
+}
+
+/* Super Slow: 2s */
+.animate-fade-in-slide-up-super-slow {
+  animation: fade-in-slide-up 2s ease-out both;
+}

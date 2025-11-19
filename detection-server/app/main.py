@@ -13,7 +13,7 @@ app = FastAPI()
 model = None
 
 # Your phone's IP camera stream
-CAMERA_URL = "http://192.168.1.22:8080/video"
+CAMERA_URL = "http://192.168.1.30:8080/video"
 
 
 BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))  # path to app folder

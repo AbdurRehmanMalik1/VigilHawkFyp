@@ -24,6 +24,15 @@ services:
       MONGO_URI: ${MONGO_URI}
     restart: unless-stopped
 
+  react-server:
+    build: ./react-server
+    container_name: vigilhawk-react
+    ports:
+      - "8082:80"
+    depends_on:
+      - fastapi-server
+    restart: unless-stopped
+
   mongo:
     image: mongo:6
     container_name: mongo

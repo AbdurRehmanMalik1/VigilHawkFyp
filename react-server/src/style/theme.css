@@ -1,0 +1,116 @@
+/* ========= Global Theme Variables ========= */
+:root {
+  --primary: #138aec;
+  --background-light: #f6f7f8;
+  --background-dark: #101a22;
+  --text-light: #ffffff;
+  --text-gray: #d1d5db;
+  --text-dark: #1f2937;
+  --overlay-dark: rgba(16, 26, 34, 0.8);
+  --input-bg-dark: rgba(255, 255, 255, 0.07);
+  --input-bg-light: rgba(0, 0, 0, 0.05);
+  --border-light: rgba(255, 255, 255, 0.2);
+  --border-dark: rgba(0, 0, 0, 0.2);
+}
+
+/* ========= Base Theme (Dark by Default) ========= */
+body {
+  background-color: var(--background-dark);
+  color: var(--text-light);
+  font-family: 'Space Grotesk', sans-serif;
+}
+* {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* ========= Replacements for Tailwind Colors ========= */
+.bg-primary {
+  background-color: var(--primary) !important;
+}
+
+
+.text-white {
+  color: var(--text-light) !important;
+}
+
+.text-gray-300 {
+  color: var(--text-gray) !important;
+}
+
+.text-gray-400 {
+  color: #9ca3af !important;
+}
+
+
+/* ========= Input Fields ========= */
+input,
+.form-input {
+  background-color: var(--input-bg-dark) !important;
+  border: 1px solid var(--border-light) !important;
+  color: var(--text-light) !important;
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* ========= Checkbox ========= */
+input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+/* ========= Button ========= */
+button {
+  cursor: pointer;
+  border: none;
+}
+
+/* ========= Hover Effects ========= */
+button:hover {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+  transition: 0.2s ease-in-out;
+}
+
+
+
+.text-primary {
+  color: var(--primary) !important;
+}
+
+.text-secondary {
+  color: var(--text-gray) !important;
+}
+
+.text-light {
+  color: var(--text-light) !important;
+}
+
+.text-dark {
+  color: var(--text-dark) !important;
+}
+
+
+
+
+.bg-background-dark {
+  background-color: var(--background-dark) !important;
+}
+
+.bg-background-light {
+  background-color: var(--background-light) !important;
+}
+
+.bg-background-light\/50 {
+  background-color: rgba(246, 247, 248, 0.5) !important;
+}
+
+.bg-background-dark\/50 {
+  background-color: rgba(16, 26, 34, 0.5) !important;
+}
+
+/* ========= Dark Overlay Fix ========= */
+.bg-background-dark\/80 {
+  background-color: rgba(16, 26, 34, 0.8) !important;
+  backdrop-filter: blur(4px);
+}

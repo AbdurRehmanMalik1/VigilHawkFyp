@@ -1,0 +1,56 @@
+@keyframes slide-in-from-left {
+  from {
+    transform: translateX(-100vw);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-from-left-fast {
+  animation: slide-in-from-left 0.5s ease-out forwards;
+}
+
+.animate-slide-in-from-left-medium {
+  animation: slide-in-from-left 1s ease-out forwards;
+}
+
+.animate-slide-in-from-left-slow {
+  animation: slide-in-from-left 1.5s ease-out forwards;
+}
+
+.animate-slide-in-from-left-super-slow {
+  animation: slide-in-from-left 2s ease-out forwards;
+}
+
+/* ==== Slide In FROM RIGHT ==== */
+@keyframes slide-in-from-right {
+  from {
+    transform: translateX(100vw);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-from-right-fast {
+  animation: slide-in-from-right 0.5s ease-out forwards;
+}
+
+.animate-slide-in-from-right-medium {
+  animation: slide-in-from-right 1s ease-out forwards;
+}
+
+.animate-slide-in-from-right-slow {
+  animation: slide-in-from-right 1.5s ease-out forwards;
+}
+
+.animate-slide-in-from-right-super-slow {
+  animation: slide-in-from-right 2s ease-out forwards;
+}

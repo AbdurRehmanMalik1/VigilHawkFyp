@@ -3,7 +3,7 @@ from typing import Optional
 from jose import JWTError, jwt
 import os
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY: str = os.getenv("SECRET_KEY") # type: ignore
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

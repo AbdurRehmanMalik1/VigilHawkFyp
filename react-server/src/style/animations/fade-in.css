@@ -1,0 +1,25 @@
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in-fast {
+  animation: fade-in 0.5s ease-in-out both;
+}
+
+.animate-fade-in-medium {
+  animation: fade-in 1s ease-in-out both;
+}
+
+.animate-fade-in-slow {
+  animation: fade-in 1.5s ease-in-out both;
+}
+
+.animate-fade-in-super-slow {
+  animation: fade-in 2s ease-in-out both;
+}

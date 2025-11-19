@@ -6,7 +6,7 @@ import numpy as np
 model = YOLO("models/best.pt")
 
 def run_detection(image_bytes):
-    nparr = np.frombuffer(image_bytes, np.uint8)
+    nparr = np.frombuffer(buffer=image_bytes, dtype=np.uint8)
     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     results = model(frame)[0]
