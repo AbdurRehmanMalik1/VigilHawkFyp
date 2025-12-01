@@ -9,7 +9,6 @@ PROTECTED_PREFIXES: list[str] = [
     "/user"
 ]
 
-
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
     is_protected = any(path.startswith(prefix) for prefix in PROTECTED_PREFIXES)
@@ -18,8 +17,7 @@ async def auth_middleware(request: Request, call_next):
 
     # Extract Bearer token
     auth_header = request.headers.get("Authorization")
-    print({is_protected , auth_header})
-    
+
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.replace("Bearer ", "")
 
@@ -53,7 +51,7 @@ async def auth_middleware(request: Request, call_next):
                 status_code=401,
             )
 
-        request.state.user = user.model_dump(exclude={"hashed_password"})
+        request.state.user = user.to_safe_user()
 
     else:
         # Public route → attach user if token exists but don't block
@@ -65,7 +63,7 @@ async def auth_middleware(request: Request, call_next):
                 if not user_temp:
                     request.user.state = None
                 else:
-                    request.state.user = user_temp.model_dump(exclude={"hashed_password"})
+                    request.state.user = user_temp.to_safe_user()
             else:
                 request.state.user = None
         else:

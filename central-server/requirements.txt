@@ -9,3 +9,4 @@ email-validator
 python-multipart
 types-requests
 types-orjson
+nats-py

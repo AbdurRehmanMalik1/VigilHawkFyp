@@ -8,6 +8,7 @@ services:
       - "8000:8000"
     depends_on:
       - mongo
+      - nats
     environment:
       MONGO_URI: ${MONGO_URI}
       SECRET_KEY: ${SECRET_KEY}
@@ -20,6 +21,7 @@ services:
       - "8001:8001"
     depends_on:
       - mongo
+      - nats
     environment:
       MONGO_URI: ${MONGO_URI}
     restart: unless-stopped
@@ -32,6 +34,16 @@ services:
     depends_on:
       - fastapi-server
     restart: unless-stopped
+
+  nats:
+    image: nats:2.10
+    container_name: nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"  # monitoring UI
+    command: ["-js"]  # enable JetStream
+    restart: always
+
 
   mongo:
     image: mongo:6

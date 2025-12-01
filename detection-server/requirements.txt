@@ -5,6 +5,7 @@ python-multipart
 opencv-python
 numpy
 pillow
+nats-py
 
 # PyTorch (CUDA is autodetected from the index)
 --extra-index-url https://download.pytorch.org/whl/cu130

@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from typing import Annotated, Optional
+from typing import  Optional
 from app.auth.service import authenticate_user, get_user_by_email
 from app.auth.dto import UserCreate, UserOut, Token
 from app.utils.jwt import create_access_token

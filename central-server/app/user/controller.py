@@ -1,6 +1,5 @@
-from fastapi import APIRouter, HTTPException, Request
-from app.models import User
-from app.user.dto import UserMeOut
+from fastapi import APIRouter, Request
+from app.global_dto import SafeUser
 
 router = APIRouter()
 
@@ -8,9 +7,6 @@ router = APIRouter()
 # GET CURRENT USER — PROTECTED
 # (Middleware enforces auth)
 # ---------------------------
-@router.get("/me", response_model=UserMeOut)
+@router.get("/me", response_model=SafeUser)
 async def read_users_me(request: Request):
-    if not request.state.user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     return request.state.user
