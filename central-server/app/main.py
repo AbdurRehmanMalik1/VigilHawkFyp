@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.database import init_db
 from app.auth.controller import router as auth_router
@@ -7,11 +8,20 @@ from app.middlewares.auth_middleware import auth_middleware
 from fastapi.middleware.cors import CORSMiddleware
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ---- STARTUP CODE ----
+    await init_db()        # 🟢 your original startup function
 
-@app.on_event("startup")
-async def app_init():
-    await init_db()
+    yield
+
+    # ---- SHUTDOWN CODE ----
+    # If you want cleanup later, put it here
+    # e.g., closing database connections
+    # await some_cleanup()
+    
+
+app = FastAPI(lifespan=lifespan)
 
 origins = [
     "http://localhost:5500",

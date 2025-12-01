@@ -114,6 +114,8 @@ model = YOLO(model_path)
 def generate_frames(camera_url: str):
     if model is None:
         raise RuntimeError("Model not loaded")
+    
+    print('generate frames called')
 
     cap = cv2.VideoCapture(camera_url)
     frame_id = 0

@@ -1,8 +1,7 @@
 import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.listener.central_server import command_listener
-import nats
 
 app = FastAPI()
 origins = [
@@ -10,31 +9,36 @@ origins = [
     "http://127.0.0.1:8000"
 ]
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Starting FastAPI lifespan...")
 
-async def test_nats():
-    print('testin nats')
-    try:
-        nc = await nats.connect("nats://nats:4222")
-        print("Connected to NATS!")
-        sub = await nc.subscribe("camera.cmd")
-        print("Subscribed to camera.cmd")
-
-        async for msg in sub.messages:
-            print(f"Got message: {msg.data.decode()}")
-    except Exception as e:
-        print("Error:", e)
-
-print('being read at least')
-
-@app.on_event("startup")
-async def app_init():
+    # STARTUP
+    # asyncio.create_task(test_nats())   # enable if needed
     asyncio.create_task(command_listener())
-    #asyncio.create_task(test_nats())
+
+    print("Startup tasks created.")
+    yield
+
+    # SHUTDOWN
+    print("Shutting down FastAPI... (add cleanup if needed)")
+    # Example:
+    # if nc.is_connected:
+    #    await nc.drain()
+
+
+# @app.on_event("startup")
+# async def app_init():
+#     asyncio.create_task(command_listener())
+#     #asyncio.create_task(test_nats())
 
 
 @app.get("/")
 async def something():
     return {"message": "Welcome"}
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
