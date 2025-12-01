@@ -130,3 +130,9 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+
+*.pt
+
+detection-server/models/*.pt
+detection-server/old_model/*.pt
