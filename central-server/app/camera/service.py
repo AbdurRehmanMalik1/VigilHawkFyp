@@ -12,7 +12,8 @@ async def create_camera(data: CameraRegister) -> CameraOut:
             name=data.name,
             location=data.location,
             url=data.url,
-            registered_by=PydanticObjectId(user.id)
+            registered_by=PydanticObjectId(user.id),
+            status='Online'
         )
         await camera.insert()
 

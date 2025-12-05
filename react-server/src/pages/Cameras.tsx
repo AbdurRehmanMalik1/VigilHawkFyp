@@ -1,7 +1,15 @@
 import { useNavigate } from "react-router";
+import { useAppSelector } from "../feature/store/reduxHooks";
 
 export default function Cameras() {
   const navigate = useNavigate();
+  const {email, username , id } = useAppSelector(state=>state.user);
+
+  console.log({
+    email,
+    id,
+    username
+  })
 
   // ==== Camera Data Array ====
   const cameras = [

@@ -3,27 +3,40 @@ import VigilHawkIcon from '../assets/Vigil Hawk icon.png';
 import { TailSpin } from 'react-loader-spinner';
 import { useNavigate } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
-import { loginUserAPI } from '../api/auth';
+import { loginUserAPI, type Token } from '../feature/api/auth';
+import { setUser } from '../feature/store/slices/authSlice';
+import { useAppDispatch } from '../feature/store/reduxHooks';
+import { fetchCurrentUserAPI } from '../feature/api/user';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   const mutation = useMutation({
     mutationFn: loginUserAPI,
-    onSuccess: (data: any) => {
-      localStorage.setItem('authToken', data.token);
-      navigate('/cameras'); // redirect after successful login
+    onSuccess: async (data: Token) => {
+      localStorage.setItem('authToken', data.access_token);
+      console.log(localStorage.getItem('authToken'))
+      console.log(localStorage.getItem(`access_token   ${data.access_token}`))
+      try {
+        const userData = await fetchCurrentUserAPI();
+        // 3. Dispatch user data to redux store
+        dispatch(setUser(userData));
+        navigate('/');
+      } catch (error: any) {
+        alert(error.message || 'Failed to fetch user data');
+      }
     },
-    onError(error: Error){
-      alert(error.message || 'Failed to Login');    
-    }
+    onError(error: Error) {
+      alert(error.message || 'Failed to Login');
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-        console.log('submit called');
+    console.log('submit called');
 
     mutation.mutate({ username, password });
   };

@@ -5,12 +5,13 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: 'http://localhost:8000',  // or use your container hostname if needed
   timeout: 10000,                    // optional: timeout in ms
+  withCredentials: true,
 });
 
 // Request interceptor (e.g., attach auth token)
 api.interceptors.request.use(
   config => {
-    const token = localStorage.getItem('authToken'); // or however you store it
+    const token = localStorage.getItem('authToken'); // or however you store it'
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -25,11 +26,13 @@ api.interceptors.response.use(
   error => {
     if (!error.response) {
       // Network error, server down, etc
-      alert('Network error, please try again later.');
+      // Just log it or notify silently
+      console.error('Network error, please try again later.');
+      // Or trigger some global toast notification here instead of alert
     } else if (error.response.status === 401) {
       // Unauthorized - maybe token expired
-      alert('Session expired. Please login again.');
-      // Optionally redirect to login page here
+      // Optionally silently redirect to login or trigger logout
+      console.warn('Session expired. Redirecting to login.');
       window.location.href = '/login';
     }
     return Promise.reject(error);

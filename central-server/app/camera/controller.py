@@ -24,14 +24,14 @@ async def get_camera(camera_id: str, req: Request) -> CameraOut:
     return await get_single_camera(user_id , PydanticObjectId(camera_id))
 
 
-@router.post("/start/{camera_id}")
-async def start_camera(camera_id: str, req: Request):
-    user_id = PydanticObjectId("691e27c49298a5ffcc00adda")#req.state.user.id
-    camera = await get_single_camera(user_id , PydanticObjectId(camera_id))
-    if camera:
-        await send_start_camera(camera_id, str(camera.url))
-        return {"status": "started"}
-    return {"details": "You start stop this camera."}
+# @router.post("/start/{camera_id}")
+# async def start_camera(camera_id: str, req: Request):
+#     user_id = PydanticObjectId("691e27c49298a5ffcc00adda")#req.state.user.id
+#     camera = await get_single_camera(user_id , PydanticObjectId(camera_id))
+#     if camera:
+#         await send_start_camera(camera_id, str(camera.url))
+#         return {"status": "started"}
+#     return {"details": "You start stop this camera."}
 
 
 # @router.patch("/stop/{camera_id}")

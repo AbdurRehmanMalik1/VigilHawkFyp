@@ -4,7 +4,6 @@ from app.utils.jwt import verify_token
 from app.auth.service import get_user_by_email
 from app.models import User
 
-
 PROTECTED_PREFIXES: list[str] = [
     "/user"
 ]
@@ -13,13 +12,17 @@ async def auth_middleware(request: Request, call_next):
     path = request.url.path
     is_protected = any(path.startswith(prefix) for prefix in PROTECTED_PREFIXES)
 
+    # Allow OPTIONS requests without auth for CORS preflight
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
     token = None
 
     # Extract Bearer token
     auth_header = request.headers.get("Authorization")
 
     if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.replace("Bearer ", "")
+        token = auth_header[len("Bearer "):]
 
     if is_protected:
         # No token → reject immediately
@@ -37,7 +40,7 @@ async def auth_middleware(request: Request, call_next):
                 status_code=401,
             )
 
-        email: str = payload.get("sub") # type: ignore
+        email: str = payload.get("sub")  # type: ignore
         if not email:
             return JSONResponse(
                 {"detail": "Invalid token payload"},
@@ -58,10 +61,10 @@ async def auth_middleware(request: Request, call_next):
         if token:
             payload = verify_token(token)
             if payload:
-                email: str = payload.get("sub") # type: ignore
-                user_temp = (await get_user_by_email(email))
+                email: str = payload.get("sub")  # type: ignore
+                user_temp = await get_user_by_email(email)
                 if not user_temp:
-                    request.user.state = None
+                    request.state.user = None
                 else:
                     request.state.user = user_temp.to_safe_user()
             else:

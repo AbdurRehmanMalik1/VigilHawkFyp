@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { BrowserRouter, Routes, Route } from 'react-router';
 import Login from '../pages/Login';
 import Signup from '../pages/Signup';
 import Cameras from '../pages/Cameras';
@@ -9,6 +9,7 @@ import Analytics from '../pages/Analytics';
 import SystemSettings from '../pages/SystemSettings';
 import CameraConfiguration from '../pages/CameraConfiguration';
 import AlertsAndLogs from '../pages/AlertsAndLogs';
+import AuthCheckLayout from '../pageLayout/AuthCheckLayout';
 
 const layoutRoutes = [
   { path: "cameras", element: <Cameras /> },
@@ -24,8 +25,11 @@ const AppRouter = (): JSX.Element => {
     <BrowserRouter>
       <Routes>
         {/* Auth pages */}
-        <Route path="login" element={<Login />} />
-        <Route path="signup" element={<Signup />} />
+        <Route element={<AuthCheckLayout />}>
+          <Route path="login" element={<Login />} />
+          <Route path="signup" element={<Signup />} />
+        </Route>
+
 
         {/* Auto-wrapped layout routes */}
         {layoutRoutes.map(({ path, element }) => (
@@ -35,9 +39,7 @@ const AppRouter = (): JSX.Element => {
             element={<PageLayout>{element}</PageLayout>}
           />
         ))}
-
-        {/* Redirect root to cameras */}
-        <Route path="/" element={<Navigate to="cameras" replace />} />
+        <Route path='/' element={<PageLayout><Cameras/></PageLayout>}/>
       </Routes>
     </BrowserRouter>
   );

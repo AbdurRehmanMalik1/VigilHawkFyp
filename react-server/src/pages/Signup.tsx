@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router'
 import VigilHawkIcon from '../assets/Vigil Hawk icon.png';
-import { signupUserAPI } from '../api/auth';
+import { signupUserAPI } from '../feature/api/auth';
 
 export default function Signup() {
   const navigate = useNavigate();

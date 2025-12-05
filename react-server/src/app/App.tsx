@@ -1,18 +1,21 @@
 import type { JSX } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Provider } from 'react-redux';
 import AppRouter from './AppRouter';
 import { useGlobalClickListener } from '../hooks/useGlobalClickListener';
+import { store } from '../feature/store/store';
 
-// Create a QueryClient instance
 const queryClient = new QueryClient();
 
 const App = (): JSX.Element => {
   useGlobalClickListener();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppRouter />
-    </QueryClientProvider>
+    <Provider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <AppRouter />
+      </QueryClientProvider>
+    </Provider>
   );
 }
 

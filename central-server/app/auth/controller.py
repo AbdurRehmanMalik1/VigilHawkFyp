@@ -30,9 +30,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 
 
-# ---------------------------
-# REGISTER — PUBLIC
-# ---------------------------
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register_user(user_create: UserCreate):
     existing_user = await get_user_by_email(user_create.email)
