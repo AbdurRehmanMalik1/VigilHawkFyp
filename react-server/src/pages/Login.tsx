@@ -1,16 +1,46 @@
+import React, { useState } from 'react';
 import VigilHawkIcon from '../assets/Vigil Hawk icon.png';
+import { TailSpin } from 'react-loader-spinner';
+import { useNavigate } from 'react-router';
+import { useMutation } from '@tanstack/react-query';
+import { loginUserAPI } from '../api/auth';
 
-export default function Login(){
+export default function Login() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const navigate = useNavigate();
+
+  const mutation = useMutation({
+    mutationFn: loginUserAPI,
+    onSuccess: (data: any) => {
+      localStorage.setItem('authToken', data.token);
+      navigate('/cameras'); // redirect after successful login
+    },
+    onError(error: Error){
+      alert(error.message || 'Failed to Login');    
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+        console.log('submit called');
+
+    mutation.mutate({ username, password });
+  };
+
   return (
     <div
       className="relative flex min-h-screen w-full flex-col items-center justify-center bg-cover bg-center bg-no-repeat"
       style={{
         backgroundImage:
-          'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDgVIUHGE5gVedNOQf1Ig6fzHSjJtRMT83PWvl4CzmiQZo_4-boobLRz4_nd1bqgu2lVleJ60ylmGXdizZDOWBA4O4kC_IXQGhpwFwXmPoOiH5fHh6uqdglvgU3pQSge7hpRtyieQIxEILWx3ZMQNdAf63Gtd-uvN7ODsak3Dg3zlPmKmBA08JvGrnFDTDVFOADLKpzXRDL79D_haHc-nhaX2sqPgCAy80gnZNmIQRTdFcqFpd1HXpJs4FShOuDCAL4bGDjY65-LcZg")'
+          'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDgVIUHGE5gVedNOQf1Ig6fzHSjJtRMT83PWvl4CzmiQZo_4-boobLRz4_nd1bqgu2lVleJ60ylmGXdizZDOWBA4O4kC_IXQGhpwFwXmPoOiH5fHh6uqdglvgU3pQSge7hpRtyieQIxEILWx3ZMQNdAf63Gtd-uvN7ODsak3Dg3zlPmKmBA08JvGrnFDTDVFOADLKpzXRDL79D_haHc-nhaX2sqPgCAy80gnZNmIQRTdFcqFpd1HXpJs4FShOuDCAL4bGDjY65-LcZg")',
       }}
     >
       <div className="absolute inset-0 bg-background-dark/80 backdrop-blur-sm" />
-      <div className="relative z-10 flex w-full max-w-md flex-col items-center p-8">
+      <form
+        onSubmit={handleSubmit}
+        className="relative z-10 flex w-full max-w-md flex-col items-center p-8"
+      >
         <div className="mb-8 text-center">
           <img
             alt="VigilHawk Logo"
@@ -31,6 +61,9 @@ export default function Login(){
                 name="username"
                 placeholder="Username or Email"
                 type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
               />
             </div>
             <div>
@@ -43,13 +76,17 @@ export default function Login(){
                 name="password"
                 placeholder="Password"
                 type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </div>
           </div>
+
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <input
-                className="form-checkbox h-4 w-4 rounded border-gray-500 bg-transparent text-primary checked:bg-primary checked:border-transparent checked:bg-[image:--checkbox-tick-svg] focus:ring-primary"
+                className="form-checkbox h-4 w-4 rounded border-gray-500 bg-transparent text-primary checked:bg-primary checked:border-transparent focus:ring-primary"
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
@@ -68,18 +105,35 @@ export default function Login(){
               Forgot Password?
             </a>
           </div>
+
           <button
-            className="w-full rounded-lg bg-primary px-5 py-3 text-base font-bold text-white transition-transform duration-200 hover:scale-105"
+            disabled={mutation.isPending}
+            className="relative flex justify-center w-full rounded-lg bg-primary px-5 py-3 text-base font-bold text-white transition-transform duration-200 hover:scale-105 disabled:opacity-70"
             type="submit"
           >
-            Login
+            {mutation.isPending ? (
+              <TailSpin
+                height={24}
+                width={24}
+                color="white"
+                ariaLabel="loading"
+              />
+            ) : (
+              'Login'
+            )}
           </button>
+
+          {mutation.isError && (
+            <p className="mt-2 text-center text-sm text-red-500">
+              {(mutation.error as Error).message}
+            </p>
+          )}
         </div>
+
         <footer className="mt-12 text-center text-sm text-gray-400">
           <p>© 2025 VigilHawk. All rights reserved.</p>
         </footer>
-      </div>
+      </form>
     </div>
-
   );
-};
+}

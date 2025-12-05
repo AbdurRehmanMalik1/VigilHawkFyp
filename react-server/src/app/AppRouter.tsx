@@ -10,21 +10,34 @@ import SystemSettings from '../pages/SystemSettings';
 import CameraConfiguration from '../pages/CameraConfiguration';
 import AlertsAndLogs from '../pages/AlertsAndLogs';
 
+const layoutRoutes = [
+  { path: "cameras", element: <Cameras /> },
+  { path: "cameras/:location", element: <SingleCamera /> },
+  { path: "analytics", element: <Analytics /> },
+  { path: "system-settings", element: <SystemSettings /> },
+  { path: "camera-configuration", element: <CameraConfiguration /> },
+  { path: "alerts-logs", element: <AlertsAndLogs /> },
+];
+
 const AppRouter = (): JSX.Element => {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Auth pages */}
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
-        <Route path="/" element={<PageLayout/>}>
-          <Route index element={<Navigate to="cameras" replace />} />
-          <Route path='cameras' element={<Cameras/>}/>
-          <Route path="cameras/:location" element={<SingleCamera/>}/>
-          <Route path="analytics" element={<Analytics/>}/>
-          <Route path="system-settings" element={<SystemSettings/>}/>
-          <Route path="camera-configuration" element={<CameraConfiguration/>}/>
-          <Route path="alerts-logs" element={<AlertsAndLogs/>}/>
-        </Route>
+
+        {/* Auto-wrapped layout routes */}
+        {layoutRoutes.map(({ path, element }) => (
+          <Route
+            key={path}
+            path={path}
+            element={<PageLayout>{element}</PageLayout>}
+          />
+        ))}
+
+        {/* Redirect root to cameras */}
+        <Route path="/" element={<Navigate to="cameras" replace />} />
       </Routes>
     </BrowserRouter>
   );

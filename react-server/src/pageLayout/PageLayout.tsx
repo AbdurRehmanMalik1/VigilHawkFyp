@@ -1,6 +1,11 @@
-import { NavLink, Outlet } from "react-router";
+import type { JSX } from "react";
+import { NavLink } from "react-router";
 
-export default function PageLayout() {
+type PageLayoutProps = {
+  children: JSX.Element
+}
+
+export default function PageLayout({children}: PageLayoutProps) {
   return (
     <div
       id="pageLayout"
@@ -98,7 +103,10 @@ export default function PageLayout() {
 
       {/* Page Content */}
       <main className="flex-1 overflow-y-auto p-2 bg-background-dark">
-        <Outlet />
+        {/* <Outlet /> */}
+        {
+          children
+        }
       </main>
     </div>
   );
