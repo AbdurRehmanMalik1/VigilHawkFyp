@@ -4,6 +4,7 @@ from app.database import init_db
 from app.auth.controller import router as auth_router
 from app.user.controller import router as user_router
 from app.camera.controller import router as camera_router
+from app.camera import callback_controller as camera_callback
 from app.middlewares.auth_middleware import auth_middleware
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -44,3 +45,4 @@ app.middleware("http")(auth_middleware)
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(user_router, prefix="/user" , tags=["user"])
 app.include_router(camera_router, prefix="/camera" , tags=["camera"])
+app.include_router(camera_callback.router)
