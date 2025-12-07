@@ -10,7 +10,7 @@ type PageLayoutProps = {
 };
 
 export default function PageLayout({ children }: PageLayoutProps) {
-  const { username } = useAppSelector(state => state.user);
+  const { username, isLoggedIn } = useAppSelector(state => state.user);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -18,7 +18,8 @@ export default function PageLayout({ children }: PageLayoutProps) {
     async function fetchUser() {
       try {
         const safeUser = await fetchCurrentUserAPI();
-        dispatch(setUserRedux(safeUser));
+        if(!isLoggedIn)
+          dispatch(setUserRedux(safeUser));
       } catch (error) {
         // Silently handle error, no alert
         navigate("/login", { replace: true });

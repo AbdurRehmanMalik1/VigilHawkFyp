@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from beanie import PydanticObjectId
 from app.models import Camera, User
-from app.camera.dto import CameraRegister, CameraOut
+from app.camera.dto import CameraRegister, CameraOut, CameraUpdate
 
 async def create_camera(data: CameraRegister) -> CameraOut:
     try:
@@ -39,7 +39,8 @@ async def get_cameras_for_user(user_id: PydanticObjectId) -> list[CameraOut]:
             location=camera.location,
             url=camera.url,
             created_at=camera.created_at,
-            registered_by=camera.registered_by
+            registered_by=camera.registered_by,
+            status=camera.status
         ))
 
     return result
@@ -56,10 +57,41 @@ async def get_single_camera(user_id: PydanticObjectId, camera_id: PydanticObject
             location=camera.location,
             url=camera.url,
             created_at=camera.created_at,
-            registered_by=camera.registered_by
+            registered_by=camera.registered_by,
+            status=camera.status
         )
 
+
+async def start_registered_cameras(user_id: PydanticObjectId):
+    cameras: list[Camera] = await Camera.find(
+        Camera.registered_by == user_id
+    ).to_list()
+
+
+
+async def update_camera(user_id: PydanticObjectId, camera_id: PydanticObjectId, data: CameraUpdate) -> CameraOut:
+    # Fetch the camera first, ensure it belongs to this user
+    camera = await Camera.find_one(Camera.registered_by == user_id, Camera.id == camera_id)
+    if not camera:
+        raise HTTPException(status_code=404, detail="Camera not found") 
+
+    update_data = data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(camera, key, value)
     
+    await camera.save()
+    
+    return CameraOut(
+            id=camera.id,
+            name=camera.name,
+            location=camera.location,
+            url=camera.url,
+            created_at=camera.created_at,
+            registered_by= user_id,
+            status=camera.status
+        )
+    
+
 
 
 

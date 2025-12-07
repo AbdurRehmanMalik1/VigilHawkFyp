@@ -13,7 +13,7 @@ import AuthCheckLayout from '../pageLayout/AuthCheckLayout';
 
 const layoutRoutes = [
   { path: "cameras", element: <Cameras /> },
-  { path: "cameras/:location", element: <SingleCamera /> },
+  { path: "cameras/:camera_id", element: <SingleCamera /> },
   { path: "analytics", element: <Analytics /> },
   { path: "system-settings", element: <SystemSettings /> },
   { path: "camera-configuration", element: <CameraConfiguration /> },

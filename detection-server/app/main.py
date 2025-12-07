@@ -1,7 +1,6 @@
-import asyncio
-from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.video.controller import router as video_router
 
 app = FastAPI()
 origins = [
@@ -9,22 +8,22 @@ origins = [
     "http://127.0.0.1:8000"
 ]
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    print("Starting FastAPI lifespan...")
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     print("Starting FastAPI lifespan...")
 
-    # STARTUP
-    # asyncio.create_task(test_nats())   # enable if needed
-    asyncio.create_task(command_listener())
+#     # STARTUP
+#     # asyncio.create_task(test_nats())   # enable if needed
+#     asyncio.create_task(command_listener())
 
-    print("Startup tasks created.")
-    yield
+#     print("Startup tasks created.")
+#     yield
 
-    # SHUTDOWN
-    print("Shutting down FastAPI... (add cleanup if needed)")
-    # Example:
-    # if nc.is_connected:
-    #    await nc.drain()
+#     # SHUTDOWN
+#     print("Shutting down FastAPI... (add cleanup if needed)")
+#     # Example:
+#     # if nc.is_connected:
+#     #    await nc.drain()
 
 
 # @app.on_event("startup")
@@ -33,12 +32,8 @@ async def lifespan(app: FastAPI):
 #     #asyncio.create_task(test_nats())
 
 
-@app.get("/")
-async def something():
-    return {"message": "Welcome"}
 
-
-app = FastAPI(lifespan=lifespan)
+# app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,5 +42,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(video_router)
+
+
+@app.get("/")
+async def something():
+    return {"message": "Welcome"}
+
 
 # app.include_router(video_router, prefix="/video" , tags=["video"])

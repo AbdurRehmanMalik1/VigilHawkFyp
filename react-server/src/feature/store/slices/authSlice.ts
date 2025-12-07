@@ -5,12 +5,14 @@ interface UserState {
   id: string | null;
   username: string;
   email: string;
+  isLoggedIn: boolean
 }
 
 const initialState: UserState = {
   id: null,
   username: '',
   email: '',
+  isLoggedIn: false
 };
 
 const userSlice = createSlice({
@@ -21,11 +23,13 @@ const userSlice = createSlice({
       state.id = action.payload.id ?? null;
       state.username = action.payload.username;
       state.email = action.payload.email;
+      state.isLoggedIn = true;
     },
     clearUser(state) {
       state.id = null;
       state.username = '';
       state.email = '';
+      state.isLoggedIn = false;
     },
   },
 });

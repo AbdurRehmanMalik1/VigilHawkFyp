@@ -9,8 +9,8 @@ import { useAppDispatch } from '../feature/store/reduxHooks';
 import { fetchCurrentUserAPI } from '../feature/api/user';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('johnjoe@gmail.com');
+  const [password, setPassword] = useState('12345678');
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -19,7 +19,6 @@ export default function Login() {
     onSuccess: async (data: Token) => {
       localStorage.setItem('authToken', data.access_token);
       console.log(localStorage.getItem('authToken'))
-      console.log(localStorage.getItem(`access_token   ${data.access_token}`))
       try {
         const userData = await fetchCurrentUserAPI();
         // 3. Dispatch user data to redux store

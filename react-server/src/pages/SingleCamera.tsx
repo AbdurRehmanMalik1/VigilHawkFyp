@@ -1,21 +1,76 @@
 import { useParams } from "react-router";
+import { useEffect, useState } from "react";
+import { useAppSelector, useAppDispatch } from "../feature/store/reduxHooks";
+import { getRegisteredCamerasAPI, type CameraOut } from "../feature/api/camera";
+import { useMutation } from "@tanstack/react-query";
+import { setCameras } from "../feature/store/slices/cameraSlice";
 
 export default function SingleCamera() {
-  const { location } = useParams();
+  const { camera_id } = useParams<{ camera_id: string }>();
+  const dispatch = useAppDispatch();
+
+  const cameras = useAppSelector(state => state.camera.cameras);
+  const [camera, setCamera] = useState<CameraOut | null>(null);
+
+  const { isPending, error } = useMutation({
+    mutationFn: getRegisteredCamerasAPI,
+    onSuccess: (data) => {
+      dispatch(setCameras(data));
+      // After fetching, update the camera from the new data
+      const found = data.find(c => c.id === camera_id) ?? null;
+      setCamera(found);
+    }
+  });
+
+  useEffect(() => {
+    const foundCamera = cameras.find(c => c.id === camera_id) ?? null;
+    if (!foundCamera) {
+      console.log('Camera not found');
+      // Optionally, you can trigger a refetch here:
+      // mutate();
+    }
+    setCamera(foundCamera);
+  }, [camera_id, cameras]);
+
+  if (isPending) {
+    return (
+      <main className="flex-1 flex items-center justify-center">
+        <p>Loading camera details...</p>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex-1 flex items-center justify-center text-red-600">
+        <p>Failed to load camera details.</p>
+      </main>
+    );
+  }
+
+  if (!camera) {
+    return (
+      <main className="flex-1 flex items-center justify-center">
+        <p>Camera not found</p>
+      </main>
+    );
+  }
+
+  // Destructure camera info to use in UI
+  const { location, url } = camera;
+
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="p-8">
         <div className="grid grid-cols-3 gap-8">
+          {/* Main content */}
           <div className="col-span-3 lg:col-span-2">
             <h1 className="text-4xl font-bold text-black dark:text-white mb-4">
               Camera: {location ?? "Unknown Location"}
             </h1>
             <div
               className="mx-auto relative mb-6 aspect-video w-[70%] overflow-hidden rounded-lg bg-cover bg-center"
-              style={{
-                backgroundImage:
-                  'url("https://lh3.googleusercontent.com/aida-public/AB6AXuB8TEI4IY1VFUZ6zp8bk7PSniZjc1VKLR4oCGjkJcTQ-Yy3cJnVg4zoR73Hh8esKsjkSJbcupAWOT2vgKPkZU2PhxCTixKnZAaUg1OeXx9Zdz2weCssZL6nggPiSYGQMh5pYPrDRAonTSUgTqmH8W4qy1Yq9ROSFft-CmrF3Z_WuFny4Tws5ghg38sZFXJ38XhobTJfQKbiJPAZO7Zo3rWr-v9_AsaPBvymcDURJK6dHjQB6KGdaJl5fMRQA1i-YLZG-Zi45pxzJpO_")'
-              }}
+              style={{ backgroundImage: `url(${url})` }}
             >
               <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                 <button className="flex h-16 w-16 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-transform hover:scale-110">
@@ -31,6 +86,7 @@ export default function SingleCamera() {
                 </button>
               </div>
             </div>
+
             <div className="mb-6">
               <h3 className="text-lg font-bold text-black dark:text-white mb-2">
                 Threat Level
@@ -40,12 +96,10 @@ export default function SingleCamera() {
                 <p>75%</p>
               </div>
               <div className="h-2 w-full rounded-full bg-black/20 dark:bg-white/20">
-                <div
-                  className="h-full rounded-full bg-red-500"
-                  style={{ width: "75%" }}
-                />
+                <div className="h-full rounded-full bg-red-500" style={{ width: "75%" }} />
               </div>
             </div>
+
             <div>
               <h3 className="text-lg font-bold text-black dark:text-white mb-4">
                 Camera Logs
@@ -72,7 +126,6 @@ export default function SingleCamera() {
                       <td className="px-4 py-3">Object Identified</td>
                       <td className="px-4 py-3">Weapon near entrance</td>
                     </tr>
-                    <tr></tr>
                     <tr>
                       <td className="px-4 py-3">2024-01-20 14:45:00</td>
                       <td className="px-4 py-3">Threat Assessment</td>
@@ -88,6 +141,8 @@ export default function SingleCamera() {
               </div>
             </div>
           </div>
+
+          {/* Sidebar */}
           <div className="col-span-3 lg:col-span-1 space-y-6">
             <div>
               <h3 className="text-lg font-bold text-black dark:text-white mb-4">
@@ -107,12 +162,8 @@ export default function SingleCamera() {
                     </svg>
                   </div>
                   <div>
-                    <p className="font-medium text-black dark:text-white">
-                      Humanoid
-                    </p>
-                    <p className="text-sm text-black/60 dark:text-white/60">
-                      Living Room
-                    </p>
+                    <p className="font-medium text-black dark:text-white">Humanoid</p>
+                    <p className="text-sm text-black/60 dark:text-white/60">Living Room</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -124,13 +175,7 @@ export default function SingleCamera() {
                       height={70}
                       fill="none"
                     >
-                      <rect
-                        width={512}
-                        height={512}
-                        rx={96}
-                        ry={96}
-                        fill="#1b232a"
-                      />
+                      <rect width={512} height={512} rx={96} ry={96} fill="#1b232a" />
                       <path
                         d="M120 200h200v40h60c10 0 20 8 20 18v10h40v26h-40v10c0 10-10 18-20 18h-70l-10 60h-50l10-60h-60l-20 60h-50l20-60h-20c-10 0-20-8-20-18v-64c0-10 10-20 20-20z"
                         stroke="#ffffff"
@@ -142,22 +187,19 @@ export default function SingleCamera() {
                   </div>
                   <div>
                     <p className="font-medium text-black dark:text-white">Weapon</p>
-                    <p className="text-sm text-black/60 dark:text-white/60">
-                      Living Room
-                    </p>
+                    <p className="text-sm text-black/60 dark:text-white/60">Living Room</p>
                   </div>
                 </div>
               </div>
             </div>
+
             <div>
-              <h3 className="text-lg font-bold text-black dark:text-white mb-2">
-                Threat Summary
-              </h3>
+              <h3 className="text-lg font-bold text-black dark:text-white mb-2">Threat Summary</h3>
               <p className="text-sm text-black/80 dark:text-white/80">
-                Multiple anomalies detected. Threat level elevated due to potential
-                intrusion and suspicious objects.
+                Multiple anomalies detected. Threat level elevated due to potential intrusion and suspicious objects.
               </p>
             </div>
+
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-black dark:text-white">
@@ -169,6 +211,7 @@ export default function SingleCamera() {
                 </label>
               </div>
             </div>
+
             <div className="mt-6 space-y-3">
               <button className="flex h-10 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-bold text-white transition-opacity hover:opacity-90">
                 <span>Capture Snapshot</span>
@@ -181,5 +224,5 @@ export default function SingleCamera() {
         </div>
       </div>
     </main>
-  )
+  );
 }

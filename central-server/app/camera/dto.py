@@ -16,3 +16,11 @@ class CameraOut(BaseModel):
     url: HttpUrl
     created_at: datetime
     registered_by: PydanticObjectId 
+    status: str
+
+
+class CameraUpdate(BaseModel):
+    name: Optional[str] = None
+    location: Optional[str] = None
+    url: Optional[HttpUrl] = None
+    status: Optional[str] = None

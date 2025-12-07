@@ -6,6 +6,7 @@ from app.models import User
 
 PROTECTED_PREFIXES: list[str] = [
     "/user"
+    "/camera"
 ]
 
 async def auth_middleware(request: Request, call_next):

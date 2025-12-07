@@ -1,10 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
 import userReducer from './slices/authSlice';
-
+import cameraReducer from './slices/cameraSlice';
 
 export const store = configureStore({
   reducer: {
     user: userReducer,
+     camera: cameraReducer
     // add other reducers here
   },
 });

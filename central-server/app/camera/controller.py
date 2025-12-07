@@ -1,27 +1,73 @@
 import asyncio
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from app.camera.dto import CameraRegister, CameraOut
-from app.camera.service import create_camera, get_cameras_for_user, get_single_camera
+from app.camera.dto import CameraRegister, CameraOut, CameraUpdate
+from app.camera.service import create_camera, get_cameras_for_user, get_single_camera, start_registered_cameras, update_camera
+import httpx
 
 router = APIRouter()
 
+DETECTION_BACKEND_URL = "http://localhost:8001"
+
+
+@router.post("/start/{camera_id}")
+async def start_camera(camera_id: str, req: Request):
+    camera = await get_single_camera(req.state.user.id, PydanticObjectId(camera_id))
+    if not camera:
+        raise HTTPException(404, "Camera not found or not authorized")
+
+    # Call detection backend to start the camera
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{DETECTION_BACKEND_URL}/start_camera",
+            json={"camera_id": camera_id, "camera_url": str(camera.url)}
+        )
+        if resp.status_code != 200:
+            raise HTTPException(502, "Failed to start camera on detection backend")
+
+    return {"status": "started"}
+    
+
+@router.get("/video_feed/{camera_id}")
+async def proxy_video_feed(camera_id: str):
+    url = f"{DETECTION_BACKEND_URL}/video_feed/{camera_id}"
+
+    async with httpx.AsyncClient(timeout=None) as client:
+        try:
+            backend_response = await client.get(url, timeout=None)
+            # Stream the backend MJPEG stream directly to client
+            return StreamingResponse(
+                backend_response.aiter_bytes(),
+                media_type=backend_response.headers.get("content-type", "multipart/x-mixed-replace; boundary=frame")
+            )
+        except httpx.RequestError as e:
+            raise HTTPException(502, detail=f"Detection backend not available: {e}")
+
+@router.get("/{camera_id}", response_model=CameraOut, status_code=200)
+async def get_camera(camera_id: str, req: Request) -> CameraOut:
+    user_id = req.state.user.id
+    return await get_single_camera(user_id , PydanticObjectId(camera_id))
+
+@router.patch("/{camera_id}", response_model=CameraOut, status_code=200)
+async def update_camera_controller(camera_id: str, body: CameraUpdate, req: Request) -> CameraOut:
+    user_id = req.state.user.id
+    return await update_camera(user_id, PydanticObjectId(camera_id), body)
+
+
 @router.post("/", response_model=CameraOut, status_code=201)
 async def register_camera(body: CameraRegister, req: Request)->CameraOut:
+    print(req.state.user)
     body.registered_by = req.state.user.id
     return await create_camera(body)
+
+
 
 @router.get("/" , response_model=list[CameraOut], status_code=200)
 async def get_registered_cameras(req: Request)->list[CameraOut]:
     user_id = req.state.user.id
     return await get_cameras_for_user(user_id)
 
-
-@router.get("/{camera_id}", response_model=CameraOut, status_code=200)
-async def get_camera(camera_id: str, req: Request) -> CameraOut:
-    user_id = req.state.user.id
-    return await get_single_camera(user_id , PydanticObjectId(camera_id))
 
 
 # @router.post("/start/{camera_id}")

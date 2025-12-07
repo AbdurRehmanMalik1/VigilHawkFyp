@@ -1,5 +1,68 @@
+import { registerCameraAPI, updateCameraAPI, type CameraOut } from "../feature/api/camera";
+import { useState } from "react";
+import { useAppDispatch, useAppSelector } from "../feature/store/reduxHooks";
+import { setCameras } from "../feature/store/slices/cameraSlice";
 
 export default function SystemSettings() {
+
+
+  const [showModal, setShowModal] = useState(false);
+  const dispatch = useAppDispatch();
+  const { cameras } = useAppSelector(state => state.camera);
+
+  // Form state
+
+  const [form, setForm] = useState({
+    name: "",
+    location: "",
+    url: "",
+  });
+  const [editingCamera, setEditingCamera] = useState<CameraOut | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Handle input changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  // Submit handler
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      let updatedCamera: CameraOut;
+      if (editingCamera) {
+        // Update existing camera
+        updatedCamera = await updateCameraAPI(editingCamera.id, form);
+        // Update Redux state: replace updated camera
+        dispatch(setCameras(cameras.map(cam => cam.id === updatedCamera.id ? updatedCamera : cam)));
+      } else {
+        // Create new camera
+        updatedCamera = await registerCameraAPI(form);
+        dispatch(setCameras([...cameras, updatedCamera]));
+      }
+      setShowModal(false);
+      setEditingCamera(null);
+      setForm({ name: "", location: "", url: "" });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (camera: CameraOut) => {
+    setEditingCamera(camera);
+    setForm({
+      name: camera.name,
+      location: camera.location,
+      url: camera.url,
+    });
+    setShowModal(true);
+  };
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex h-16 items-center justify-between border-b border-gray-200/10 dark:border-gray-800/50 px-6 pr-20">
@@ -18,7 +81,7 @@ export default function SystemSettings() {
               }}
             >
             </div>
-            
+
             <div className="text-sm">
               <div className="font-bold text-gray-900 dark:text-white">
                 Azwa Nawaz
@@ -115,7 +178,10 @@ export default function SystemSettings() {
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                 Registered Cameras
               </h3>
-              <button className="flex items-center gap-1 px-4 py-2 bg-primary/20 dark:bg-primary/30 text-primary font-medium rounded-lg hover:bg-primary/30 dark:hover:bg-primary/40">
+              <button
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-1 px-4 py-2 bg-primary/20 dark:bg-primary/30 text-primary font-medium rounded-lg hover:bg-primary/30 dark:hover:bg-primary/40"
+              >
                 <span className="material-symbols-outlined text-base">add</span>
                 <span>Add Camera</span>
               </button>
@@ -147,53 +213,129 @@ export default function SystemSettings() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className=" dark:bg-background-dark divide-y divide-gray-200/10 dark:divide-gray-800/50">
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      Camera 1
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      Main Entrance
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        Online
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                      <button className="text-primary hover:text-primary/80">
-                        Edit
-                      </button>
-                      <button className="text-red-600 hover:text-red-800">
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      Camera 2
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      Back Exit
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                        Offline
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                      <button className="text-primary hover:text-primary/80">
-                        Edit
-                      </button>
-                      <button className="text-red-600 hover:text-red-800">
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
+                <tbody className="dark:bg-background-dark divide-y divide-gray-200/10 dark:divide-gray-800/50">
+                  {cameras.map(camera => (
+                    <tr key={camera.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {camera.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {camera.location}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${camera?.status === "Online"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                          }`}>
+                          {camera.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button
+                          onClick={() => handleEdit(camera)}
+                          className="text-primary hover:text-primary/80"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="text-red-600 hover:text-red-800"
+                        // You can add delete logic here if you want
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </section>
+          {showModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-6 w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+                  Register Camera
+                </h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label
+                      htmlFor="name"
+                      className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      id="name"
+                      required
+                      value={form.name}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 p-2 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="location"
+                      className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      name="location"
+                      id="location"
+                      required
+                      value={form.location}
+                      onChange={handleChange}
+                      className="w-full rounded-md border border-gray-300 p-2 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="url"
+                      className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      URL
+                    </label>
+                    <input
+                      type="url"
+                      name="url"
+                      id="url"
+                      required
+                      value={form.url}
+                      onChange={handleChange}
+                      placeholder="http://192.168.1.19:8080/video"
+                      className="w-full rounded-md border border-gray-300 p-2 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                    />
+                  </div>
+
+                  {error && (
+                    <p className="text-red-500 text-sm">{error}</p>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowModal(false)}
+                      className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="px-4 py-2 rounded bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {loading ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
           <footer className="flex justify-end gap-1 pt-8 border-t border-gray-200/10 dark:border-gray-800/50">
             <button className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
               Restore Defaults
