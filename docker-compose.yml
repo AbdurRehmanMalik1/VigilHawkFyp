@@ -6,8 +6,11 @@ services:
     container_name: vigilhawk-central-server
     ports:
       - "8000:8000"
+    volumes:
+      - ./hls_data:/tmp/hls
     depends_on:
       - mongo
+      - rtsp-server
     environment:
       MONGO_URI: ${MONGO_URI}
       SECRET_KEY: ${SECRET_KEY}
@@ -34,6 +37,7 @@ services:
       - "8082:80"
     depends_on:
       - fastapi-server
+      - rtsp-server
     restart: unless-stopped
 
   nats:
@@ -54,3 +58,15 @@ services:
       - "27017:27017"
     volumes:
       - ./data:/data/db
+
+  rtsp-server:
+    image: bluenviron/mediamtx
+    ports:
+      - "8554:8554"
+    restart: unless-stopped
+    volumes:
+      - ./config/mediamtx.yml:/mediamtx.yml:ro
+    #command: ["mediamtx", "/mediamtx.yml"]
+networks:
+  mynet:
+    driver: bridge

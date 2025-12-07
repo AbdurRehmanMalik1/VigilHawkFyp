@@ -1,0 +1,81 @@
+# You must define or import your model and log_detection function somewhere above or in this module
+# from app.model import model, log_detection
+
+running_cameras: dict[str, asyncio.Task] = {}
+ffmpeg_processes: dict[str, subprocess.Popen] = {}
+
+# async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
+#     if model is None:
+#         raise RuntimeError("Model not loaded")
+
+#     cap = cv2.VideoCapture(camera_url)
+#     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+#     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#     fps = cap.get(cv2.CAP_PROP_FPS) or 25
+
+#     ffmpeg_cmd = [
+#         "ffmpeg",
+#         "-y",
+#         "-f", "rawvideo",
+#         "-pix_fmt", "bgr24",
+#         "-s", f"{width}x{height}",
+#         "-r", str(fps),
+#         "-i", "-",  # stdin pipe
+#         "-c:v", "libx264",
+#         "-preset", "veryfast",
+#         "-tune", "zerolatency",
+#         "-f", "rtsp",
+#         "-rtsp_transport", "tcp",
+#         rtsp_out_url,
+#     ]
+
+#     ffmpeg_process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
+#     ffmpeg_processes[camera_id] = ffmpeg_process
+
+#     frame_id = 1
+
+#     try:
+#         while True:
+#             success, frame = cap.read()
+#             if not success:
+#                 break
+
+#             frame_id += 1
+
+#             if (frame_id - 1) % 3 != 0:
+#                 results = model(frame, verbose=False)
+#                 annotated_frame = results[0].plot()
+
+#                 detections = results[0].boxes
+#                 print(f"Detections count: {len(detections)}")
+#                 for box in detections:
+#                     cls_id = int(box.cls[0])
+#                     conf = float(box.conf[0])
+#                     x1, y1, x2, y2 = map(float, box.xyxy[0])
+
+#                     log_detection({
+#                         "frame_id": frame_id,
+#                         "camera": camera_url,
+#                         "class_id": cls_id,
+#                         "class_name": model.names[cls_id],
+#                         "confidence": conf,
+#                         "bbox": [x1, y1, x2, y2]
+#                     })
+
+#                 frame_to_send = annotated_frame
+#             else:
+#                 frame_to_send = frame
+
+#             # Write frame bytes to ffmpeg stdin
+#             ffmpeg_process.stdin.write(frame_to_send.tobytes())
+
+#             await asyncio.sleep(0)  # yield to event loop
+
+#     except asyncio.CancelledError:
+#         print(f"Camera task {camera_id} cancelled")
+#     finally:
+#         cap.release()
+#         if ffmpeg_process.stdin:
+#             ffmpeg_process.stdin.close()
+#         ffmpeg_process.wait()
+#         ffmpeg_processes.pop(camera_id, None)

@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router";
 import { useAppDispatch, useAppSelector } from "../feature/store/reduxHooks";
 import { useEffect } from "react";
-import { getRegisteredCamerasAPI } from "../feature/api/camera";
+import { getRegisteredCamerasAPI, startCameraAPI, type CameraOut } from "../feature/api/camera";
 import { useMutation } from "@tanstack/react-query";
-import { setCameras } from "../feature/store/slices/cameraSlice";
+import { setCameras, setGeneratedCameras } from "../feature/store/slices/cameraSlice";
 import { TailSpin } from "react-loader-spinner";
+import api from "../feature/axios";
+import HlsVideoPlayer from "../components/HlsVideoPlayer";
 
 export default function Cameras() {
   const navigate = useNavigate();
@@ -15,13 +17,39 @@ export default function Cameras() {
   const { mutate, isPending } = useMutation({
     mutationFn: getRegisteredCamerasAPI,
     onSuccess: (data) => {
-      dispatch(setCameras(data))
+      dispatch(setCameras([...data]))
+
     }
   })
 
   useEffect(() => {
     mutate();
   }, []);
+
+  useEffect(() => {
+    if (cameras.length > 0) {
+      Promise.all(
+        cameras.map(async (cam: CameraOut) => {
+          try {
+            const res = await startCameraAPI(cam.id);
+            console.log(`Camera ${cam.id} started:`, res.status);
+
+            // Return new camera object with correct video feed url including camera id
+            return {
+              ...cam,
+              url: `${api.getUri()}/camera/video_feed/${cam.id}`
+            };
+          } catch (error) {
+            console.error(`Failed to start camera ${cam.id}:`, error);
+            // Return original camera if start failed
+            return cam;
+          }
+        })
+      ).then((updatedCams: CameraOut[]) => {
+        dispatch(setGeneratedCameras(updatedCams));
+      });
+    }
+  }, [cameras]);
 
   console.log({
     email,
@@ -105,20 +133,15 @@ export default function Cameras() {
                   onClick={() => handleCameraClick(cam.id)}
                   className="relative group aspect-video bg-gray-900 rounded-lg overflow-hidden shadow-lg cursor-pointer"
                 >
-                  <img
+                  {/* <video
+                    controls
+                    autoPlay
+                    muted
                     src={cam.url}
-                    alt={cam.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    onError={(e) => {
-                      // Fallback: Replace with a placeholder or hide the image
-                      const target = e.currentTarget;
-                      target.onerror = null; // prevents infinite loop if placeholder fails
-                      target.src = "/path/to/placeholder-image.png"; // a fallback image
-                      // Or, if you want to just hide the image on error:
-                      // target.style.display = 'none';
-                    }}
-                  />
-
+                   
+                    className="w-full h-full object-cover"
+                  /> */}
+                  <HlsVideoPlayer src={cam.url}/>
                   {/* Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
@@ -148,7 +171,7 @@ export default function Cameras() {
       {/* Footer */}
       <footer className="flex items-center justify-between px-6 py-2 dark:bg-background-dark/50 border-t border-gray-200/10 dark:border-gray-800/50 text-xs text-gray-500 dark:text-gray-400">
         <span>
-          Operator: <span className="font-semibold text-green-300">Azwa Nawaz</span>
+          Operator: <span className="font-semibold text-green-300">{username}</span>
         </span>
       </footer>
     </div>

@@ -5,12 +5,24 @@ from app.auth.service import get_user_by_email
 from app.models import User
 
 PROTECTED_PREFIXES: list[str] = [
-    "/user"
-    "/camera"
+    "/user",
+    "/camera",
+]
+
+EXEMPT_PATHS: list[str] = [
+    "/camera/video_feed",  # Example: exempt the video feed endpoint from auth
+    # Add more exceptions here as needed
 ]
 
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
+
+    # Check exceptions first (full prefix match)
+    if any(path.startswith(exempt) for exempt in EXEMPT_PATHS):
+        # Bypass auth for exempted paths
+        request.state.user = None  # or keep as-is
+        return await call_next(request)
+
     is_protected = any(path.startswith(prefix) for prefix in PROTECTED_PREFIXES)
 
     # Allow OPTIONS requests without auth for CORS preflight

@@ -1,19 +1,19 @@
 from datetime import datetime
 from typing import Optional
 from beanie import PydanticObjectId
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, AnyUrl
 
 class CameraRegister(BaseModel):
     name: Optional[str]
     location: str
-    url: HttpUrl
+    url: AnyUrl
     registered_by: Optional[PydanticObjectId] = None
 
 class CameraOut(BaseModel):
     id: Optional[PydanticObjectId]
     name: Optional[str]
     location: str
-    url: HttpUrl
+    url: AnyUrl
     created_at: datetime
     registered_by: PydanticObjectId 
     status: str
@@ -22,5 +22,5 @@ class CameraOut(BaseModel):
 class CameraUpdate(BaseModel):
     name: Optional[str] = None
     location: Optional[str] = None
-    url: Optional[HttpUrl] = None
+    url: Optional[AnyUrl] = None
     status: Optional[str] = None

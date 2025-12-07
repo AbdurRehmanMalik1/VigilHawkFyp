@@ -55,3 +55,18 @@ export async function updateCameraAPI(id: string, data: Partial<Omit<CameraOut, 
     throw error;
   }
 }
+
+export interface StartCameraResponse {
+  status: string; // e.g. "started"
+}
+
+
+export async function startCameraAPI(cameraId: string): Promise<StartCameraResponse> {
+  try {
+    const response = await api.post<StartCameraResponse>(`camera/start/${cameraId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to start camera:", error);
+    throw error?.response?.data?.detail || error.message || "Failed to start camera";
+  }
+}

@@ -1,0 +1,150 @@
+# from fastapi import APIRouter, HTTPException
+# from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
+# from pathlib import Path
+# import logging
+# from app.utils.frame import generate_frames
+# import asyncio
+# from app.utils.frame import generate_frames
+
+
+# router = APIRouter()
+
+# running_cameras: dict[str, asyncio.Task] = {}
+# latest_frames: dict[str, bytes] = {} 
+
+# async def camera_task(camera_id: str, camera_url: str):
+#     print(f"[START] Camera {camera_id}")
+
+#     try:
+#         for frame_bytes in generate_frames(camera_url):
+#             latest_frames[camera_id] = frame_bytes
+#             await asyncio.sleep(0)  # yield to event loop
+#     except asyncio.CancelledError:
+#         print(f"[STOP] Camera {camera_id} cancelled")
+#     except Exception as e:
+#         print(f"[ERROR] Camera {camera_id} crashed: {e}")
+#     finally:
+#         latest_frames.pop(camera_id, None)
+
+#     print(f"[END] Camera {camera_id}")
+
+
+# async def mjpeg_stream(camera_id: str):
+#     if camera_id not in latest_frames:
+#         # Wait until the first frame arrives or camera starts
+#         while camera_id not in latest_frames:
+#             await asyncio.sleep(0.05)
+
+#     while True:
+#         if camera_id in latest_frames:
+#             frame = latest_frames[camera_id]
+#             yield (
+#                 b"--frame\r\n"
+#                 b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
+#             )
+#         await asyncio.sleep(0.03)  # 30 FPS cap
+
+
+
+# @router.post("/start_camera")
+# async def start_camera(camera_id: str, camera_url: str):
+#     print('detection')
+#     if camera_id in running_cameras:
+#         raise HTTPException(400, "Camera already running")
+
+#     task = asyncio.create_task(camera_task(camera_id, camera_url))
+#     running_cameras[camera_id] = task
+
+#     return {"status": "started", "camera_id": camera_id}
+
+
+# @router.post("/stop_camera")
+# async def stop_camera(camera_id: str):
+#     task = running_cameras.get(camera_id)
+#     if not task:
+#         raise HTTPException(404, f"Camera {camera_id} is not running")
+
+#     task.cancel()
+#     del running_cameras[camera_id]
+
+#     return {"status": "stopped", "camera_id": camera_id}
+
+
+# @router.get("/video_feed/{camera_id}")
+# async def video_feed(camera_id: str):
+#     return StreamingResponse(
+#         mjpeg_stream(camera_id),
+#         media_type="multipart/x-mixed-replace; boundary=frame"
+#     )
+
+
+
+import os
+import subprocess
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+
+app = FastAPI()
+
+HLS_FOLDER = "/tmp/hls"
+HLS_PLAYLIST = os.path.join(HLS_FOLDER, "stream.m3u8")
+ffmpeg_process = None
+
+FFMPEG_CMD_TEMPLATE = [
+    "ffmpeg",
+    "-rtsp_transport", "tcp",
+    "-i", "",  # Placeholder for RTSP URL
+    "-c:v", "copy",
+    "-c:a", "aac",
+    "-f", "hls",
+    "-hls_time", "2",
+    "-hls_list_size", "5",
+    "-hls_flags", "delete_segments",
+    "-hls_segment_filename", os.path.join(HLS_FOLDER, "segment_%03d.ts"),
+    HLS_PLAYLIST
+]
+
+@app.post("/start_stream/")
+async def start_stream(rtsp_url: str):
+    global ffmpeg_process
+
+    if ffmpeg_process and ffmpeg_process.poll() is None:
+        raise HTTPException(status_code=400, detail="Stream already running")
+
+    if not os.path.exists(HLS_FOLDER):
+        os.makedirs(HLS_FOLDER)
+
+    # Clear previous HLS files
+    for file in os.listdir(HLS_FOLDER):
+        os.remove(os.path.join(HLS_FOLDER, file))
+
+    cmd = FFMPEG_CMD_TEMPLATE.copy()
+    cmd[4] = rtsp_url
+
+    ffmpeg_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    return {"status": "started"}
+
+@app.post("/stop_stream/")
+async def stop_stream():
+    global ffmpeg_process
+    if ffmpeg_process:
+        ffmpeg_process.terminate()
+        ffmpeg_process = None
+        return {"status": "stopped"}
+    else:
+        raise HTTPException(status_code=400, detail="No active stream")
+
+@app.get("/hls/{filename}")
+async def hls_file(filename: str):
+    filepath = os.path.join(HLS_FOLDER, filename)
+    if not os.path.isfile(filepath):
+        raise HTTPException(404, detail="File not found")
+    media_type = "application/vnd.apple.mpegurl" if filename.endswith(".m3u8") else "video/MP2T"
+    return FileResponse(filepath, media_type=media_type)
+
+@app.get("/playlist")
+async def get_playlist():
+    if not os.path.exists(HLS_PLAYLIST):
+        raise HTTPException(404, detail="Playlist not found")
+    return FileResponse(HLS_PLAYLIST, media_type="application/vnd.apple.mpegurl")

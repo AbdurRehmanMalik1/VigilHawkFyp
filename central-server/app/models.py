@@ -1,6 +1,6 @@
 from typing import Optional, Union
 from beanie import Document, Link, PydanticObjectId
-from pydantic import Field, HttpUrl
+from pydantic import Field, AnyUrl
 from app.global_dto import SafeUser
 from datetime import datetime
 
@@ -24,7 +24,7 @@ class Camera(Document):
     id: Optional[PydanticObjectId] = Field(default_factory=PydanticObjectId, alias="_id")
     name: Optional[str]
     location: str = Field(min_length=1)
-    url: HttpUrl
+    url: AnyUrl
     created_at: datetime = Field(default_factory=datetime.utcnow)
     registered_by: PydanticObjectId
     status: str = Field(min_length=1)

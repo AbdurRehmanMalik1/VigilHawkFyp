@@ -13,25 +13,52 @@ DETECTION_BACKEND_URL = "http://localhost:8001"
 
 @router.post("/start/{camera_id}")
 async def start_camera(camera_id: str, req: Request):
-    camera = await get_single_camera(req.state.user.id, PydanticObjectId(camera_id))
-    if not camera:
-        raise HTTPException(404, "Camera not found or not authorized")
+    try:
+        camera = await get_single_camera(req.state.user.id, PydanticObjectId(camera_id))
+        if not camera:
+            raise HTTPException(404, "Camera not found or not authorized")
+    except Exception as e:
+        raise HTTPException(500, f"Failed to retrieve camera: {e}")
 
-    # Call detection backend to start the camera
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{DETECTION_BACKEND_URL}/start_camera",
-            json={"camera_id": camera_id, "camera_url": str(camera.url)}
-        )
-        if resp.status_code != 200:
-            raise HTTPException(502, "Failed to start camera on detection backend")
+    timeout = 5  # seconds
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            try:
+                # Try HEAD request first
+                response = await client.head(str(camera.url))
+                if response.status_code != 200:
+                    raise HTTPException(400, f"Camera URL not reachable (status {response.status_code})")
+            except httpx.RequestError:
+                # Fallback to GET if HEAD fails
+                response = await client.get(str(camera.url), timeout=timeout)
+                if response.status_code != 200:
+                    raise HTTPException(400, f"Camera URL not reachable (status {response.status_code})")
+    except HTTPException:
+        # Re-raise HTTPExceptions (e.g. 400) for reachable checks
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Error while checking camera URL reachability: {e}")
+
+    try:
+        async with httpx.AsyncClient() as client:
+            print(f"{DETECTION_BACKEND_URL}/video/start_camera")
+            resp = await client.post(
+                f"{DETECTION_BACKEND_URL}/video/start_camera",
+                params={"camera_id": camera_id, "camera_url": str(camera.url)}
+            )
+            if resp.status_code != 200:
+                raise HTTPException(502, "Failed to start camera on detection backend")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Error while calling detection backend: {e}")
 
     return {"status": "started"}
     
 
 @router.get("/video_feed/{camera_id}")
 async def proxy_video_feed(camera_id: str):
-    url = f"{DETECTION_BACKEND_URL}/video_feed/{camera_id}"
+    url = f"{DETECTION_BACKEND_URL}/video/video_feed/{camera_id}"
 
     async with httpx.AsyncClient(timeout=None) as client:
         try:

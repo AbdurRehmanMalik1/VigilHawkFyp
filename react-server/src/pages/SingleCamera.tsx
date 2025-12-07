@@ -9,7 +9,7 @@ export default function SingleCamera() {
   const { camera_id } = useParams<{ camera_id: string }>();
   const dispatch = useAppDispatch();
 
-  const cameras = useAppSelector(state => state.camera.cameras);
+  const generatedCameras = useAppSelector(state => state.camera.generatedCameras);
   const [camera, setCamera] = useState<CameraOut | null>(null);
 
   const { isPending, error } = useMutation({
@@ -23,14 +23,15 @@ export default function SingleCamera() {
   });
 
   useEffect(() => {
-    const foundCamera = cameras.find(c => c.id === camera_id) ?? null;
+    const foundCamera = generatedCameras.find(c => c.id === camera_id) ?? null;
     if (!foundCamera) {
       console.log('Camera not found');
       // Optionally, you can trigger a refetch here:
       // mutate();
     }
     setCamera(foundCamera);
-  }, [camera_id, cameras]);
+    console.log({foundCamera , generatedCameras});
+  }, [camera_id, generatedCameras]);
 
   if (isPending) {
     return (

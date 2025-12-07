@@ -43,7 +43,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(video_router)
+app.include_router(video_router , prefix="/video", tags=["video"])
 
 
 @app.get("/")

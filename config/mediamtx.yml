@@ -1,0 +1,32 @@
+logLevel: info
+logDestinations: [stdout]
+
+authMethod: internal
+
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: publish
+        # path: 6935784455d6753646294c8e
+      - action: read
+        # path: 6935784455d6753646294c8e
+      - action: playback
+        # path: 6935784455d6753646294c8e
+paths:
+  all_others:
+  
+api: no
+metrics: no
+pprof: no
+
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp, udp]
+rtspEncryption: "no"
+rtspAuthMethods: [basic]
+
+rtmp: no
+hls: no
+webrtc: no
