@@ -30,7 +30,7 @@ export default function SingleCamera() {
       // mutate();
     }
     setCamera(foundCamera);
-    console.log({foundCamera , generatedCameras});
+    console.log({ foundCamera, generatedCameras });
   }, [camera_id, generatedCameras]);
 
   if (isPending) {
@@ -60,6 +60,17 @@ export default function SingleCamera() {
   // Destructure camera info to use in UI
   const { location, url } = camera;
 
+
+  function generatedCamerasStream(url: string) {
+    const stream = <img
+      src={url}
+      alt="Live Stream"
+      className="w-full h-full object-cover"
+    />
+    console.log(stream)
+    return stream
+  }
+
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="p-8">
@@ -69,10 +80,15 @@ export default function SingleCamera() {
             <h1 className="text-4xl font-bold text-black dark:text-white mb-4">
               Camera: {location ?? "Unknown Location"}
             </h1>
-            <div
-              className="mx-auto relative mb-6 aspect-video w-[70%] overflow-hidden rounded-lg bg-cover bg-center"
-              style={{ backgroundImage: `url(${url})` }}
-            >
+            <div className="mx-auto relative mb-6 aspect-video w-[70%] overflow-hidden rounded-lg bg-black">
+              {
+                generatedCamerasStream(url)
+              }
+              {/* <img
+                src={url}
+                alt="Live Stream"
+                className="w-full h-full object-cover"
+              /> */}
               <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                 <button className="flex h-16 w-16 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-transform hover:scale-110">
                   <svg

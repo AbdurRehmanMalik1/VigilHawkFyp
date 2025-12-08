@@ -10,11 +10,12 @@ from app.utils.camera_util import check_camera_url_reachable
 
 router = APIRouter()
 
-DETECTION_BACKEND_URL = "http://localhost:8001"
+DETECTION_BACKEND_URL = "http://detection-server:8001"
 
 
 @router.post("/start/{camera_id}")
 async def start_camera(camera_id: str, req: Request):
+    print(camera_id)
     try:
         camera = await get_single_camera(req.state.user.id, PydanticObjectId(camera_id))
         if not camera:
@@ -24,7 +25,7 @@ async def start_camera(camera_id: str, req: Request):
 
     data = dict()
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10) as client:
             print(f"{DETECTION_BACKEND_URL}/video/start_camera")
             resp = await client.post(
                 f"{DETECTION_BACKEND_URL}/video/start_camera",
@@ -33,16 +34,16 @@ async def start_camera(camera_id: str, req: Request):
             # if resp.status_code != 200:
             #     raise HTTPException(502, "Failed to start camera on detection backend")
             data: dict = resp.json()
-    except HTTPException:
+    except HTTPException as e:
+        print(e)
         raise
     except Exception as e:
         raise HTTPException(500, f"Error while calling detection backend: {e}")
 
-    rtsp_url = data.get("rtsp_out_url")
     return {
         "status": "started",
         "camera_id": data.get("camera_id"),
-        "rtsp_out_url": rtsp_url
+        "camera_url": f'{DETECTION_BACKEND_URL}/video/video_stream/{camera_id}'
     }
     
 
@@ -53,10 +54,9 @@ async def proxy_video_feed(camera_id: str):
     async with httpx.AsyncClient(timeout=None) as client:
         try:
             backend_response = await client.get(url, timeout=None)
-            # Stream the backend MJPEG stream directly to client
             return StreamingResponse(
-                backend_response.aiter_bytes(),
-                media_type=backend_response.headers.get("content-type", "multipart/x-mixed-replace; boundary=frame")
+                backend_response.aiter_raw(),  # use aiter_raw for streaming bytes
+                media_type=backend_response.headers.get("content-type")
             )
         except httpx.RequestError as e:
             raise HTTPException(502, detail=f"Detection backend not available: {e}")

@@ -51,6 +51,32 @@ async def video_feed(camera_id: str):
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
 
+
+@router.get("/direct_stream")
+async def direct_stream(camera_url: str):
+    """
+    Directly streams frames from the provided camera_url without starting a background task.
+    """
+
+    async def stream():
+        print(f"[DIRECT STREAM] {camera_url}")
+
+        try:
+            for frame_bytes in generate_frames(camera_url):
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+                )
+                await asyncio.sleep(0)  # allow event loop switching
+        except Exception as e:
+            print(f"[ERROR] direct stream crashed: {e}")
+            return
+
+    return StreamingResponse(
+        stream(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
 @router.post("/start_camera")
 async def start_camera(camera_id: str, camera_url: str):
     print('start camera called')
