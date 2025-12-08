@@ -160,63 +160,138 @@ model = YOLO(model_path)
 
 #     cap.release()
 
+
+def getFrameMeasurement(cap):
+    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    return [width , height]
+
+def getVideoCapture(camera_url) -> cv2.VideoCapture:
+    return cv2.VideoCapture(camera_url)
+
+
+# def generate_frames(camera_url: str):
+#     if model is None:
+#         raise RuntimeError("Model not loaded")
+    
+#     #print('generate frames called')
+
+#     cap = cv2.VideoCapture(camera_url)
+#     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    
+#     #print(cap)
+#     frame_id = 1
+
+#     while True:
+#         if not cap.grab():
+#             print("No more frames to grab, breaking")
+#             break
+#         success, frame = cap.retrieve()
+#         if not success:
+#             print("No frame retrieved, breaking")
+#             break
+
+#         #print(f"[generate_frames] Read frame shape: {frame.shape}")
+
+
+#         frame_id += 1
+#         #print(frame_id)
+
+#         if frame_id % 10 == 0:
+#             results = model(frame, verbose=False)
+#             annotated_frame = results[0].plot()
+
+#             detections = results[0].boxes
+#             #print(f"Detections count: {len(detections)}")
+#             for box in detections:
+#                 cls_id = int(box.cls[0])
+#                 conf = float(box.conf[0])
+#                 x1, y1, x2, y2 = map(float, box.xyxy[0])
+
+#                 log_detection({
+#                     "frame_id": frame_id,
+#                     "camera": camera_url,
+#                     "class_id": cls_id,
+#                     "class_name": model.names[cls_id],
+#                     "confidence": conf,
+#                     "bbox": [x1, y1, x2, y2]
+#                 })
+
+#             frame_to_send = annotated_frame
+#         else:
+#             frame_to_send = frame
+
+#         # frame_resized = cv2.resize(frame_to_send, (640, 480))
+#         # assert frame_resized.dtype == np.uint8, "Frame dtype must be uint8"
+#         # assert frame_resized.shape == (480, 640, 3), f"Frame shape must be (480, 640, 3)"
+        
+#         # Yield raw bytes in BGR24 format (numpy array converted to bytes)
+#         yield frame_to_send.tobytes()
+#         #print(f"[generate_frames] Yielded frame bytes: {len(frame_resized.tobytes())}")
+
+#     cap.release()
+
+
+
 def generate_frames(camera_url: str):
     if model is None:
         raise RuntimeError("Model not loaded")
-    
-    #print('generate frames called')
 
     cap = cv2.VideoCapture(camera_url)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-    
-    #print(cap)
-    frame_id = 1
+
+    frame_id = 0
 
     while True:
         if not cap.grab():
             print("No more frames to grab, breaking")
             break
+
         success, frame = cap.retrieve()
         if not success:
-            print("No frame retrieved, breaking")
+            print("Failed to retrieve frame, breaking")
             break
 
-        #print(f"[generate_frames] Read frame shape: {frame.shape}")
-
-
         frame_id += 1
-        #print(frame_id)
 
-        if frame_id % 20 == 0:
+        if frame_id % 8 == 0:  # run YOLO every 10 frames
             results = model(frame, verbose=False)
-            annotated_frame = results[0].plot()
-
             detections = results[0].boxes
-            #print(f"Detections count: {len(detections)}")
+
+            # MANUAL FAST DRAW
             for box in detections:
                 cls_id = int(box.cls[0])
                 conf = float(box.conf[0])
-                x1, y1, x2, y2 = map(float, box.xyxy[0])
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
 
-                log_detection({
-                    "frame_id": frame_id,
-                    "camera": camera_url,
-                    "class_id": cls_id,
-                    "class_name": model.names[cls_id],
-                    "confidence": conf,
-                    "bbox": [x1, y1, x2, y2]
-                })
+                class_name = model.names[cls_id]
 
-            frame_to_send = annotated_frame
-        else:
-            frame_to_send = frame
+                # Log detection
+                # log_detection({
+                #     "frame_id": frame_id,
+                #     "camera": camera_url,
+                #     "class_id": cls_id,
+                #     "class_name": class_name,
+                #     "confidence": conf,
+                #     "bbox": [x1, y1, x2, y2]
+                # })
+                if class_name == 'person':
+                    color = (255, 0, 0)  # Blue
+                elif class_name == 'weapon':
+                    color = (0, 0, 255)  # Red
+                else:
+                    color = (0, 255, 0)  # Green for others
 
-        frame_resized = cv2.resize(frame_to_send, (640, 480))
-        assert frame_resized.dtype == np.uint8, "Frame dtype must be uint8"
-        assert frame_resized.shape == (480, 640, 3), f"Frame shape must be (480, 640, 3)"
-        
-        # Yield raw bytes in BGR24 format (numpy array converted to bytes)
-        yield frame_resized.tobytes()
-        #print(f"[generate_frames] Yielded frame bytes: {len(frame_resized.tobytes())}")
+                # Draw rectangle
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+
+                # Draw label text
+                label = f"{class_name} {conf:.2f}"
+                cv2.putText(frame, label, (x1, y1 - 5),
+                            cv2.FONT_HERSHEY_PLAIN,
+                            0.6, color, 2)
+
+        # Stream raw BGR24 bytes (NO resizing)
+        yield frame.tobytes()
 
     cap.release()

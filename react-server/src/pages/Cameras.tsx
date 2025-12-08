@@ -6,7 +6,6 @@ import { useMutation } from "@tanstack/react-query";
 import { setCameras, setGeneratedCameras } from "../feature/store/slices/cameraSlice";
 import { TailSpin } from "react-loader-spinner";
 import api from "../feature/axios";
-import HlsVideoPlayer from "../components/HlsVideoPlayer";
 
 export default function Cameras() {
   const navigate = useNavigate();
@@ -141,7 +140,12 @@ export default function Cameras() {
                    
                     className="w-full h-full object-cover"
                   /> */}
-                  <HlsVideoPlayer src={cam.url}/>
+                  {/* <HlsVideoPlayer src={cam.url}/> */}
+                   <img
+                    src={cam.url}  // This should point to your MJPEG proxy endpoint
+                    alt={`Camera ${cam.id}`}
+                    className="w-full h-full object-cover"
+                  />
                   {/* Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 

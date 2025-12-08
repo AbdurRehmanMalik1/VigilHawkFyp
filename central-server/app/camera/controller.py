@@ -2,9 +2,11 @@ import asyncio
 from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
+import httpx
 from app.camera.dto import CameraRegister, CameraOut, CameraUpdate
 from app.camera.service import create_camera, get_cameras_for_user, get_single_camera, start_registered_cameras, update_camera
-import httpx
+from app.utils.camera_util import check_camera_url_reachable
+
 
 router = APIRouter()
 
@@ -20,25 +22,7 @@ async def start_camera(camera_id: str, req: Request):
     except Exception as e:
         raise HTTPException(500, f"Failed to retrieve camera: {e}")
 
-    timeout = 5  # seconds
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            try:
-                # Try HEAD request first
-                response = await client.head(str(camera.url))
-                if response.status_code != 200:
-                    raise HTTPException(400, f"Camera URL not reachable (status {response.status_code})")
-            except httpx.RequestError:
-                # Fallback to GET if HEAD fails
-                response = await client.get(str(camera.url), timeout=timeout)
-                if response.status_code != 200:
-                    raise HTTPException(400, f"Camera URL not reachable (status {response.status_code})")
-    except HTTPException:
-        # Re-raise HTTPExceptions (e.g. 400) for reachable checks
-        raise
-    except Exception as e:
-        raise HTTPException(500, f"Error while checking camera URL reachability: {e}")
-
+    data = dict()
     try:
         async with httpx.AsyncClient() as client:
             print(f"{DETECTION_BACKEND_URL}/video/start_camera")
@@ -46,14 +30,20 @@ async def start_camera(camera_id: str, req: Request):
                 f"{DETECTION_BACKEND_URL}/video/start_camera",
                 params={"camera_id": camera_id, "camera_url": str(camera.url)}
             )
-            if resp.status_code != 200:
-                raise HTTPException(502, "Failed to start camera on detection backend")
+            # if resp.status_code != 200:
+            #     raise HTTPException(502, "Failed to start camera on detection backend")
+            data: dict = resp.json()
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(500, f"Error while calling detection backend: {e}")
 
-    return {"status": "started"}
+    rtsp_url = data.get("rtsp_out_url")
+    return {
+        "status": "started",
+        "camera_id": data.get("camera_id"),
+        "rtsp_out_url": rtsp_url
+    }
     
 
 @router.get("/video_feed/{camera_id}")

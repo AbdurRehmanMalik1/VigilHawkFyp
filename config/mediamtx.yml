@@ -16,7 +16,18 @@ authInternalUsers:
         # path: 6935784455d6753646294c8e
 paths:
   all_others:
-  
+
+hls: yes
+# Address of the HLS listener.
+hlsAddress: :8888
+# Enable TLS/HTTPS on the HLS server.
+# This is required for Low-Latency HLS.
+hlsEncryption: no
+
+hlsAllowOrigins: ['*']
+
+hlsDirectory: '/app/hls'
+
 api: no
 metrics: no
 pprof: no
@@ -28,5 +39,4 @@ rtspEncryption: "no"
 rtspAuthMethods: [basic]
 
 rtmp: no
-hls: no
 webrtc: no

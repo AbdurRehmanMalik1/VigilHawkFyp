@@ -1,7 +1,8 @@
 import asyncio
 import subprocess
+import cv2
 from fastapi import APIRouter, HTTPException
-from app.utils.frame import generate_frames
+from app.utils.frame import generate_frames , getVideoCapture, getFrameMeasurement
 
 router = APIRouter()
 
@@ -20,6 +21,10 @@ async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
     height = 480
     fps = 25
 
+    cap = getVideoCapture(camera_url)
+    width , height = getFrameMeasurement(cap)
+
+
     # ffmpeg_cmd = [
     #     "ffmpeg",
     #     "-y",
@@ -36,6 +41,7 @@ async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
     #     "-rtsp_transport", "tcp",
     #     rtsp_out_url,
     # ]
+    
     ffmpeg_cmd = [
         "ffmpeg",
         "-y",
