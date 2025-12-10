@@ -5,7 +5,7 @@ from app.auth.service import authenticate_user, get_user_by_email
 from app.auth.dto import UserCreate, UserOut, Token
 from app.utils.jwt import create_access_token
 from app.utils.security import get_password_hash
-from app.models import User
+from app.models import User, UserSettings
 
 
 router = APIRouter()
@@ -38,10 +38,19 @@ async def register_user(user_create: UserCreate):
 
     hashed_password = get_password_hash(user_create.password)
 
+    # Create default settings instance
+    default_settings = UserSettings(
+        ai_detection=True,
+        alert_priority="Medium",
+        dashboard_alerts=True,
+        email_alerts=False,
+    )
+
     new_user = User(
         username=user_create.username,
         email=user_create.email,
         hashed_password=hashed_password,
+        settings=default_settings,
     )
 
     await new_user.insert()

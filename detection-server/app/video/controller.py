@@ -2,7 +2,7 @@ import asyncio
 import subprocess
 import cv2
 from fastapi import APIRouter, HTTPException
-from app.utils.frame import generate_frames , getVideoCapture, getFrameMeasurement, generate_frames_rtsp
+from app.utils.frame import getVideoCapture, getFrameMeasurement, generate_frames_rtsp
 
 router = APIRouter()
 
@@ -24,29 +24,9 @@ async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
     cap = getVideoCapture(camera_url)
     width , height = getFrameMeasurement(cap)
 
-    print(f'width = {width}    height = {height}')
-
     if width == 0: width = 640
     if height == 0: height = 480
-
-
-    # ffmpeg_cmd = [
-    #     "ffmpeg",
-    #     "-y",
-    #     "-f", "rawvideo",
-    #     "-pix_fmt", "bgr24",
-    #     "-s", f"{width}x{height}",
-    #     "-r", str(fps),
-    #     "-i", "-",
-    #     "-vf", "format=yuv420p",       # Add this line to convert pixel format
-    #     "-c:v", "libx264",
-    #     "-preset", "veryfast",
-    #     "-tune", "zerolatency",
-    #     "-f", "rtsp",
-    #     "-rtsp_transport", "tcp",
-    #     rtsp_out_url,
-    # ]
-    
+   
     ffmpeg_cmd = [
         "ffmpeg",
         "-y",
@@ -64,7 +44,7 @@ async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
         rtsp_out_url,
     ]
 
-    print(f"[{camera_id}] Starting FFmpeg with command: {' '.join(ffmpeg_cmd)}")
+    #print(f"[{camera_id}] Starting FFmpeg with command: {' '.join(ffmpeg_cmd)}")
     ffmpeg_process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
     ffmpeg_processes[camera_id] = ffmpeg_process
     
@@ -72,10 +52,10 @@ async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
     
     try:
         frame_count = 0
-        for frame in generate_frames_rtsp(camera_url , width , height):
+        for frame in generate_frames_rtsp(camera_url , width , height, cap, camera_id):
             # Write frame to ffmpeg stdin using run_in_executor to avoid blocking
             try:
-                await loop_exce_function(loop, ffmpeg_process.stdin.write, frame, ffmpeg_process.stdin.flush)
+                await loop_exce_function(loop, ffmpeg_process.stdin.write, frame, ffmpeg_process.stdin.flush) # type: ignore
             except BrokenPipeError:
                 #print(f"[{camera_id}] Broken pipe, FFmpeg process might have exited")
                 break

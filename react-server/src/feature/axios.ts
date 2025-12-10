@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Create an axios instance with base URL pointing to your FastAPI backend
 const api = axios.create({
-  baseURL: 'http://localhost:8050',  // or use your container hostname if needed
+  baseURL: 'http://localhost:8000',  // or use your container hostname if needed
   timeout: 10000,                    // optional: timeout in ms
   withCredentials: true,
 });
@@ -40,7 +40,7 @@ api.interceptors.response.use(
 );
 
 export const detectionApi = axios.create({
-  baseURL: 'http://localhost:8051',  // or use your container hostname if needed
+  baseURL: 'http://localhost:8001',  // or use your container hostname if needed
   timeout: 10000,                    // optional: timeout in ms
   withCredentials: true,
 });

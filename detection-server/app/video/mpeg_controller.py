@@ -9,10 +9,10 @@ running_cameras: dict[str, asyncio.Task] = {}
 latest_frames: dict[str, bytes] = {} 
 
 async def camera_task(camera_id: str, camera_url: str):
-    print(f"[START] Camera {camera_id}")
+    #print(f"[START] Camera {camera_id}")
 
     try:
-        for frame_bytes in generate_frames(camera_url):
+        for frame_bytes in generate_frames(camera_url, camera_id=camera_id):
             latest_frames[camera_id] = frame_bytes
             await asyncio.sleep(0)  # yield to event loop
     except asyncio.CancelledError:
@@ -22,7 +22,7 @@ async def camera_task(camera_id: str, camera_url: str):
     finally:
         latest_frames.pop(camera_id, None)
 
-    print(f"[END] Camera {camera_id}")
+    #print(f"[END] Camera {camera_id}")
 
 
 async def mjpeg_stream(camera_id: str):
@@ -31,7 +31,7 @@ async def mjpeg_stream(camera_id: str):
         while camera_id not in latest_frames:
             await asyncio.sleep(0.05)
 
-    print(f'is camera in latest_Frames {camera_id in latest_frames}' )
+    #print(f'is camera in latest_Frames {camera_id in latest_frames}' )
     while True:
         if camera_id in latest_frames:
             frame = latest_frames[camera_id]
@@ -59,10 +59,10 @@ async def direct_stream(camera_url: str):
     """
 
     async def stream():
-        print(f"[DIRECT STREAM] {camera_url}")
+        #print(f"[DIRECT STREAM] {camera_url}")
 
         try:
-            for frame_bytes in generate_frames(camera_url):
+            for frame_bytes in generate_frames(camera_url, camera_id=''):
                 yield (
                     b"--frame\r\n"
                     b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
@@ -79,7 +79,7 @@ async def direct_stream(camera_url: str):
 
 @router.post("/start_camera")
 async def start_camera(camera_id: str, camera_url: str):
-    print('start camera called')
+    #print('start camera called')
     if camera_id in running_cameras:
         raise HTTPException(400, "Camera already running")
 

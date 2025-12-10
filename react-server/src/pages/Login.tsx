@@ -9,7 +9,7 @@ import { useAppDispatch } from '../feature/store/reduxHooks';
 import { fetchCurrentUserAPI } from '../feature/api/user';
 
 export default function Login() {
-  const [username, setUsername] = useState('johnjoe@gmail.com');
+  const [username, setUsername] = useState('testuser@gmail.com');
   const [password, setPassword] = useState('12345678');
   const navigate = useNavigate();
   const dispatch = useAppDispatch();

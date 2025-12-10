@@ -5,19 +5,17 @@ import { getRegisteredCamerasAPI, startCameraAPI, type CameraOut } from "../feat
 import { useMutation } from "@tanstack/react-query";
 import { setCameras, setGeneratedCameras } from "../feature/store/slices/cameraSlice";
 import { TailSpin } from "react-loader-spinner";
-import { detectionApi } from "../feature/axios";
 
 export default function Cameras() {
   const navigate = useNavigate();
-  const { email, username, id } = useAppSelector(state => state.user);
+  const { username } = useAppSelector(state => state.user);
   const dispatch = useAppDispatch();
-  const cameras = useAppSelector(state => state.camera.cameras);
+  const { cameras, stoppedGeneratedCameras, generatedCameras } = useAppSelector(state => state.camera);
 
   const { mutate, isPending } = useMutation({
     mutationFn: getRegisteredCamerasAPI,
     onSuccess: (data) => {
       dispatch(setCameras([...data]))
-
     }
   })
 
@@ -30,13 +28,20 @@ export default function Cameras() {
       Promise.all(
         cameras.map(async (cam: CameraOut) => {
           try {
+            if (stoppedGeneratedCameras.find(id => id === cam.id))
+              return null;
+            
+            const tempGen = generatedCameras.find(cam => cam.id === cam.id)
+            if (tempGen)
+              return tempGen;
+
             const res = await startCameraAPI(cam.id);
             console.log(`Camera ${cam.id} started:`, res.status);
 
             // Return new camera object with correct video feed url including camera id
             return {
               ...cam,
-              url: `${detectionApi.getUri()}/video/video_feed/${cam.id}`
+              url: res.camera_url,
             };
           } catch (error) {
             console.error(`Failed to start camera ${cam.id}:`, error);
@@ -44,57 +49,11 @@ export default function Cameras() {
             return cam;
           }
         })
-      ).then((updatedCams: CameraOut[]) => {
-        dispatch(setGeneratedCameras(updatedCams));
+      ).then((updatedCams: (CameraOut | null)[] ) => {
+        dispatch(setGeneratedCameras(updatedCams.filter(Boolean) as CameraOut[]));
       });
     }
   }, [cameras]);
-
-  console.log({
-    email,
-    id,
-    username
-  })
-  console.log(cameras);
-
-  // ==== Camera Data Array ====
-  // const cameras = [
-  //   {
-  //     id: 1,
-  //     name: "Lobby Entrance",
-  //     status: "REC",
-  //     statusColor: "text-green-400",
-  //     alert: true,
-  //     img: "https://lh3.googleusercontent.com/aida-public/AB6AXuAo4x7dQAisVzRpXxGy82xtwgQq4oNv39orR1SNDZqQoXLHaVJMzGT3_4c8pbavJb6MN17eqkjwQWPmIK7S3-MkatdFTjTvPC-CKtmxby4XMsh6LpnDFmbaruXdoEIcuQcXaL1hiPNLti6CehG1pAO2O8bAMeGBtiXvuCPyw5tw_Q1UzHgO6c4zPClyAKD6ntBdE35uet8YbmfPcSCA_FxZPpLWqKOrgfG7ZJuJq2m6QV1yVdUu04EsSqhAjdgWe1oetuOpPPp0w72r",
-  //     video: <img
-  //       src="http://192.168.1.30:8080/video"
-  //       alt="Camera Stream"
-  //       style={{ width: '100%', maxWidth: 600 }}
-  //     />
-  //   },
-  //   {
-  //     id: 2,
-  //     name: "Parking Lot P-2A",
-  //     status: "REC",
-  //     statusColor: "text-green-400",
-  //     img: "https://lh3.googleusercontent.com/aida-public/AB6AXuAo4x7dQAisVzRpXxGy82xtwgQq4oNv39orR1SNDZqQoXLHaVJMzGT3_4c8pbavJb6MN17eqkjwQWPmIK7S3-MkatdFTjTvPC-CKtmxby4XMsh6LpnDFmbaruXdoEIcuQcXaL1hiPNLti6CehG1pAO2O8bAMeGBtiXvuCPyw5tw_Q1UzHgO6c4zPClyAKD6ntBdE35uet8YbmfPcSCA_FxZPpLWqKOrgfG7ZJuJq2m6QV1yVdUu04EsSqhAjdgWe1oetuOpPPp0w72r"
-  //   },
-  //   {
-  //     id: 3,
-  //     name: "East Perimeter",
-  //     status: "REC",
-  //     statusColor: "text-green-400",
-  //     img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBBgwTFA0dhtSBwM9CKSLNuJWwGzNeCwl0h_v2t6iuf_DMTW7ZioniTW9WFBxGkKR3KQgXSjdJkZ7IlKGDqHP51r1n1T0BqUNdPaU_dM5FXL7TxEK4Dfcd-nzYp6aJybgoMXf-Sy1aKml_OcJ5J2caauPpgvZ_s8eIA7IiG6DafODIz8Y952EX9uRBgK3YmauRYoHO92HQ_2A9nLw_oatUoC-M912JDP9cp05KhEOo78skOlJBgEnLGb-W_ipHPDjoKheYtjtbIFF80"
-  //   },
-  //   {
-  //     id: 4,
-  //     name: "Server Room",
-  //     status: "CONNECTION ISSUE",
-  //     statusColor: "text-yellow-400",
-  //     img: "https://lh3.googleusercontent.com/aida-public/AB6AXuC7uzIeXt9jCtcBkBP6H_7Cuu1FtBrf6y5ckXn87lLLMNn8_67__KH1LBQV9nl70pT2gIvGyI5ijUjs8nlIbxTmScmfIpLdevlReJYe3DJDINpxdzhQeCIQG81fmKQx4IAv8GXty0rO0VYMZpoxU6Om13Wr6SD4jfOfML-u8P2ptc2RD3jG5wFLp6DsoY2CPtDipmZNHKfqW_x15ScYX99t0M51uvkTwFGvtZ9EmNhUYi2zwArxtqMF-VviJdkqrRVXZqbZaVZEuQPt"
-  //   }
-  // ];
-
   // ==== Navigate Function ====
   const handleCameraClick = (camera_id: string) => {
     navigate(`/cameras/${camera_id}`);
@@ -141,7 +100,7 @@ export default function Cameras() {
                     className="w-full h-full object-cover"
                   /> */}
                   {/* <HlsVideoPlayer src={cam.url}/> */}
-                   <img
+                  <img
                     src={cam.url}  // This should point to your MJPEG proxy endpoint
                     alt={`Camera ${cam.id}`}
                     className="w-full h-full object-cover"

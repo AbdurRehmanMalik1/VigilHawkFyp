@@ -3,7 +3,7 @@ services:
     build: ./central-server
     container_name: vigilhawk-central-server
     ports:
-      - "8050:8000"           # changed host port to 8050
+      - "8000:8000"           # changed host port to 8050
     depends_on:
       - mongo
       - rtsp-server
@@ -16,7 +16,7 @@ services:
     build: ./detection-server
     container_name: vigilhawk-detection-server
     ports:
-      - "8051:8001"           # changed host port to 8051
+      - "8001:8001"           # changed host port to 8051
     depends_on:
       - mongo
     volumes:

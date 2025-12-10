@@ -6,7 +6,6 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Dict
 from app.utils.frame import generate_frames_for_hls, getFrameMeasurement, getVideoCapture
-import cv2  # Make sure opencv-python is installed
 
 router = APIRouter()
 
@@ -19,7 +18,7 @@ HLS_ROOT.mkdir(parents=True, exist_ok=True)
 async def log_ffmpeg_output(proc: subprocess.Popen, camera_id: str):
     loop = asyncio.get_running_loop()
     while True:
-        line = await loop.run_in_executor(None, proc.stderr.readline)
+        line = await loop.run_in_executor(None, proc.stderr.readline) # type: ignore
         if not line:
             break
         print(f"[{camera_id}][ffmpeg] {line.decode(errors='ignore').rstrip()}")
@@ -35,13 +34,11 @@ async def run_ffmpeg_hls(camera_id: str, rtsp_url: str):
     width = 640
     height = 480
     fps = 25
-    #using proxy
-    # proxied_rtsp_url = f"rtsp://rtsp-server:8554/{camera_id}?source={rtsp_url}"
 
     cap = getVideoCapture(rtsp_url)
     width , height = getFrameMeasurement(cap)
 
-    print(f'width = {width}    height = {height}')
+    #print(f'width = {width}    height = {height}')
 
     if width == 0: width = 640
     if height == 0: height = 480
@@ -66,7 +63,7 @@ async def run_ffmpeg_hls(camera_id: str, rtsp_url: str):
         str(out_dir / "index.m3u8")
     ]
 
-    print(out_dir)
+    #print(out_dir)
     print(f"[{camera_id}] Running FFmpeg: {' '.join(ffmpeg_cmd)}")
 
     process = subprocess.Popen(
@@ -84,16 +81,16 @@ async def run_ffmpeg_hls(camera_id: str, rtsp_url: str):
 
     try:
         # Run frame generator and pipe frames into ffmpeg stdin asynchronously
-        for frame_bytes in generate_frames_for_hls(rtsp_url, width, height, cap):
+        for frame_bytes in generate_frames_for_hls(rtsp_url, width, height, cap, camera_id):
             if process.poll() is not None:
                 print(f"[{camera_id}] FFmpeg process ended unexpectedly")
                 break
 
             # Write raw frame bytes to ffmpeg stdin
-            process.stdin.write(frame_bytes)
+            process.stdin.write(frame_bytes) # type: ignore
 
         # Close stdin to signal end of input
-        process.stdin.close()
+        process.stdin.close() # type: ignore
 
         # Wait for FFmpeg to finish processing
         await loop.run_in_executor(None, process.wait)
