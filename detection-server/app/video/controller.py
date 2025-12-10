@@ -2,7 +2,7 @@ import asyncio
 import subprocess
 import cv2
 from fastapi import APIRouter, HTTPException
-from app.utils.frame import generate_frames , getVideoCapture, getFrameMeasurement
+from app.utils.frame import generate_frames , getVideoCapture, getFrameMeasurement, generate_frames_rtsp
 
 router = APIRouter()
 
@@ -23,6 +23,11 @@ async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
 
     cap = getVideoCapture(camera_url)
     width , height = getFrameMeasurement(cap)
+
+    print(f'width = {width}    height = {height}')
+
+    if width == 0: width = 640
+    if height == 0: height = 480
 
 
     # ffmpeg_cmd = [
@@ -67,7 +72,7 @@ async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
     
     try:
         frame_count = 0
-        for frame in generate_frames(camera_url):
+        for frame in generate_frames_rtsp(camera_url , width , height):
             # Write frame to ffmpeg stdin using run_in_executor to avoid blocking
             try:
                 await loop_exce_function(loop, ffmpeg_process.stdin.write, frame, ffmpeg_process.stdin.flush)
@@ -104,9 +109,11 @@ async def start_camera(camera_id: str, camera_url: str):
     task = asyncio.create_task(camera_task(camera_id, camera_url, rtsp_out_url))
     running_cameras[camera_id] = task
 
-
-
-    return {"status": "started", "camera_id": camera_id, "rtsp_out_url": rtsp_out_url.replace('rtsp-server' ,'localhost')}
+    return {
+        "status": "started", 
+        "camera_id": camera_id, 
+        "rtsp_out_url": rtsp_out_url.replace('rtsp-server' ,'localhost')
+    }
 
 
 @router.post("/stop_camera")

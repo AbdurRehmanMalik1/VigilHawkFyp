@@ -5,6 +5,7 @@ import { getRegisteredCamerasAPI, startCameraAPI, type CameraOut } from "../feat
 import { useMutation } from "@tanstack/react-query";
 import { setCameras, setGeneratedCameras } from "../feature/store/slices/cameraSlice";
 import { TailSpin } from "react-loader-spinner";
+import { detectionApi } from "../feature/axios";
 
 export default function Cameras() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export default function Cameras() {
             // Return new camera object with correct video feed url including camera id
             return {
               ...cam,
-              url: `http://localhost:8001/video/video_feed/${cam.id}`
+              url: `${detectionApi.getUri()}/video/video_feed/${cam.id}`
             };
           } catch (error) {
             console.error(`Failed to start camera ${cam.id}:`, error);

@@ -12,6 +12,8 @@ router = APIRouter()
 
 DETECTION_BACKEND_URL = "http://detection-server:8001"
 
+REAL_DETECTION_BACKEND_URL = "http://localhost:8051"
+
 
 @router.post("/start/{camera_id}")
 async def start_camera(camera_id: str, req: Request):
@@ -39,11 +41,11 @@ async def start_camera(camera_id: str, req: Request):
         raise
     except Exception as e:
         raise HTTPException(500, f"Error while calling detection backend: {e}")
-
+    
     return {
         "status": "started",
         "camera_id": data.get("camera_id"),
-        "camera_url": f'{DETECTION_BACKEND_URL}/video/video_stream/{camera_id}'
+        "camera_url": f'{REAL_DETECTION_BACKEND_URL}/video/video_stream/{camera_id}'
     }
     
 

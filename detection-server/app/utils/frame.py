@@ -306,12 +306,11 @@ def getVideoCapture(camera_url) -> cv2.VideoCapture:
 
 
 # THIS IS OLD WALA
-# def generate_frames(camera_url: str):
+# def generate_frames_rtsp(camera_url: str):
 #     if model is None:
 #         raise RuntimeError("Model not loaded")
     
 #     print('generate frames called')
-
 #     cap = cv2.VideoCapture(camera_url)
 #     frame_id = 0
 
@@ -346,11 +345,118 @@ def getVideoCapture(camera_url) -> cv2.VideoCapture:
 #         else:
 #             frame_to_send = frame
 
-#         # Encode to raw JPEG bytes
-#         ret, buffer = cv2.imencode('.jpg', frame_to_send)
-#         yield buffer.tobytes()
+#         # Yield raw BGR bytes, NOT JPEG encoded
+#         yield frame_to_send.tobytes()
 
 
+
+def generate_frames_for_hls(camera_url: str, width: int, height: int, cap):
+    if model is None:
+        raise RuntimeError("Model not loaded")
+
+    if cap == None:
+        cap = cv2.VideoCapture(camera_url)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25  # fallback FPS
+
+    frame_id = 0
+
+    while True:
+        if not cap.grab():
+            print("No more frames to grab, breaking")
+            break
+
+        success, frame = cap.retrieve()
+        if not success or frame is None:
+            print("Failed to retrieve frame, breaking")
+            break
+
+        # Resize if needed
+        if frame.shape[1] != width or frame.shape[0] != height:
+            frame = cv2.resize(frame, (width, height))
+
+        frame_id += 1
+
+        # Run detection every 2 frames (adjust if you want)
+        if frame_id % 2 == 0:
+            results = model(frame, verbose=False)
+            detections = results[0].boxes
+
+            for box in detections:
+                cls_id = int(box.cls[0])
+                conf = float(box.conf[0])
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                class_name = model.names[cls_id]
+
+                # Color based on class
+                if class_name == 'person':
+                    color = (255, 0, 0)  # Blue
+                elif class_name == 'weapon':
+                    color = (0, 0, 255)  # Red
+                else:
+                    color = (0, 255, 0)  # Green
+
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                label = f"{class_name} {conf:.2f}"
+                cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_PLAIN, 2, color, 2)
+
+        # Yield raw BGR bytes for FFmpeg stdin
+        yield frame.tobytes()
+
+    cap.release()
+
+def generate_frames_rtsp(camera_url: str, width: int , height: int):
+    if model is None:
+        raise RuntimeError("Model not loaded")
+
+    cap = cv2.VideoCapture(camera_url)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25  # fallback to 25 if FPS not available
+
+    frame_id = 0
+
+    while True:
+        if not cap.grab():
+            print("No more frames to grab, breaking")
+            break
+
+        success, frame = cap.retrieve()
+        if not success or frame is None:
+            print("Failed to retrieve frame, breaking")
+            break
+
+
+        if frame.shape[1] != width or frame.shape[0] != height:
+            frame = cv2.resize(frame, (width, height))
+
+        frame_id += 1
+
+        if frame_id % 2 == 0:  # run YOLO every 8 frames
+            results = model(frame, verbose=False)
+            detections = results[0].boxes
+
+            for box in detections:
+                cls_id = int(box.cls[0])
+                conf = float(box.conf[0])
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                class_name = model.names[cls_id]
+
+                if class_name == 'person':
+                    color = (255, 0, 0)  # Blue
+                elif class_name == 'weapon':
+                    color = (0, 0, 255)  # Red
+                else:
+                    color = (0, 255, 0)  # Green for others
+
+                # Draw bounding box and label
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                label = f"{class_name} {conf:.2f}"
+                cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_PLAIN, 2, color, 2)
+
+        # Yield raw BGR24 bytes (no JPEG encoding)
+        yield frame.tobytes()
+
+    cap.release()
 
 def generate_frames(camera_url: str, 
                     resize_width: int = 640, 
