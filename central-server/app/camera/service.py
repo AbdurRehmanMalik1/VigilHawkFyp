@@ -94,6 +94,18 @@ async def update_camera(user_id: PydanticObjectId, camera_id: PydanticObjectId, 
 
 
 
+async def delete_camera(user_id, camera_id: PydanticObjectId) -> bool:
+    camera = await Camera.get(camera_id)
+
+    if not camera or camera.registered_by != user_id:
+        return False
+
+    await camera.delete()
+    return True
+
+async def delete_all_cameras_for_user(user_id) -> int:
+    result = await Camera.find(Camera.registered_by == user_id).delete()
+    return result.deleted_count
 
 
     

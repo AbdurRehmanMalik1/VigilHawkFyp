@@ -4,6 +4,7 @@ import { useAppSelector, useAppDispatch } from "../feature/store/reduxHooks";
 import { getRegisteredCamerasAPI, type CameraOut } from "../feature/api/camera";
 import { useMutation } from "@tanstack/react-query";
 import { setCameras } from "../feature/store/slices/cameraSlice";
+import socket from "../utils/socket"; // <-- added import
 
 export default function SingleCamera() {
   const { camera_id } = useParams<{ camera_id: string }>();
@@ -11,6 +12,7 @@ export default function SingleCamera() {
 
   const generatedCameras = useAppSelector(state => state.camera.generatedCameras);
   const [camera, setCamera] = useState<CameraOut | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]); // <-- new state
 
   const { isPending, error } = useMutation({
     mutationFn: getRegisteredCamerasAPI,
@@ -26,12 +28,32 @@ export default function SingleCamera() {
     const foundCamera = generatedCameras.find(c => c.id === camera_id) ?? null;
     if (!foundCamera) {
       console.log('Camera not found');
-      // Optionally, you can trigger a refetch here:
-      // mutate();
     }
     setCamera(foundCamera);
     console.log({ foundCamera, generatedCameras });
   }, [camera_id, generatedCameras]);
+
+  // subscribe to socket events for this camera
+  useEffect(() => {
+    if (!camera_id) return;
+
+    const handler = (data: any) => {
+        console.log("6789");
+      // filter events for this camera
+      console.log({data,camera_id})
+      if (data?.payload?.camera_id === camera_id) {
+        console.log("12345");
+        setNotifications(prev => [data, ...prev].slice(0, 100));
+      }
+    };
+    console.log("////////////////////////////////////////////////////////////////////");
+    socket.on("notification", handler);
+    socket.on("detection", handler); // server may emit "detection" instead
+    return () => {
+      socket.off("notification", handler);
+      socket.off("detection", handler);
+    };
+  }, [camera_id]);
 
   if (isPending) {
     return (
@@ -131,28 +153,21 @@ export default function SingleCamera() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/10 dark:divide-white/10">
-                    <tr>
-                      <td className="px-4 py-3">2024-01-20 14:30:00</td>
-                      <td className="px-4 py-3">Humanoid Threshold Crossed</td>
-                      <td className="px-4 py-3">
-                        Too many humanoids are detected in the camera.
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3">2024-01-20 14:35:00</td>
-                      <td className="px-4 py-3">Object Identified</td>
-                      <td className="px-4 py-3">Weapon near entrance</td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3">2024-01-20 14:45:00</td>
-                      <td className="px-4 py-3">Threat Assessment</td>
-                      <td className="px-4 py-3">Elevated risk level</td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3">2024-01-20 14:50:00</td>
-                      <td className="px-4 py-3">Alert Sent</td>
-                      <td className="px-4 py-3">Security personnel notified</td>
-                    </tr>
+                    {notifications.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-4 py-3">No notifications yet</td>
+                      </tr>
+                    ) : (
+                      notifications.map((n, idx) => (
+                        <tr key={n.timestamp ?? idx}>
+                          <td className="px-4 py-3">{n.timestamp ?? "—"}</td>
+                          <td className="px-4 py-3">{n.type ?? n.detections?.[0]?.class_name ?? "Event"}</td>
+                          <td className="px-4 py-3">
+                            {n.payload ? JSON.stringify(n.payload) : (n.detections ? `${n.detections.length} detections` : JSON.stringify(n))}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     # await some_cleanup()
     
 
-app = FastAPI(lifespan=lifespan)
+fastapi_app = FastAPI(lifespan=lifespan)
 
 origins = [
     "http://localhost:5500",
@@ -32,7 +32,7 @@ origins = [
     "http://localhost:8082",
 ]
 
-app.add_middleware(
+fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,  # <-- add your frontend origin here
     allow_credentials=True,
@@ -40,10 +40,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.middleware("http")(auth_middleware)
+fastapi_app.middleware("http")(auth_middleware)
 
 
-@app.middleware("http")
+@fastapi_app.middleware("http")
 async def print_request_body(request: Request, call_next):
     body = await request.body()
     print("Request Body:", body.decode('utf-8'))
@@ -56,7 +56,13 @@ async def print_request_body(request: Request, call_next):
     response = await call_next(request)
     return response
 
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(user_router, prefix="/user" , tags=["user"])
-app.include_router(camera_router, prefix="/camera" , tags=["camera"])
-app.include_router(camera_callback.router)
+fastapi_app.include_router(auth_router, prefix="/auth", tags=["auth"])
+fastapi_app.include_router(user_router, prefix="/user" , tags=["user"])
+fastapi_app.include_router(camera_router, prefix="/camera" , tags=["camera"])
+fastapi_app.include_router(camera_callback.router)
+
+from app.notifications.controller import router as notifications_router
+fastapi_app.include_router(notifications_router)
+
+from app.utils.socket_server import get_asgi_app
+app = get_asgi_app(fastapi_app)
