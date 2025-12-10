@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 import httpx
 from app.camera.dto import CameraRegister, CameraOut, CameraUpdate
-from app.camera.service import create_camera, get_cameras_for_user, get_single_camera, start_registered_cameras, update_camera
+from app.camera.service import create_camera, get_cameras_for_user, get_single_camera, start_registered_cameras, update_camera, delete_camera, delete_all_cameras_for_user
 from app.utils.camera_util import check_camera_url_reachable
 
 
@@ -73,6 +73,19 @@ async def update_camera_controller(camera_id: str, body: CameraUpdate, req: Requ
     user_id = req.state.user.id
     return await update_camera(user_id, PydanticObjectId(camera_id), body)
 
+@router.delete("/{camera_id}", status_code=200)
+async def delete_single_camera(camera_id: str, req: Request):
+    user_id = req.state.user.id
+
+    camera = await get_single_camera(user_id, PydanticObjectId(camera_id))
+    if not camera:
+        raise HTTPException(404, "Camera not found or not authorized")
+
+    success = await delete_camera(user_id, PydanticObjectId(camera_id))
+    if not success:
+        raise HTTPException(500, "Failed to delete camera")
+
+    return {"status": "deleted", "camera_id": camera_id}
 
 @router.post("/", response_model=CameraOut, status_code=201)
 async def register_camera(body: CameraRegister, req: Request)->CameraOut:
@@ -126,4 +139,19 @@ async def get_registered_cameras(req: Request)->list[CameraOut]:
 
 
 
+
+
+# ------------------------------------------
+# DELETE ALL CAMERAS FOR THIS USER
+# ------------------------------------------
+@router.delete("/", status_code=200)
+async def delete_all_cameras(req: Request):
+    user_id = req.state.user.id
+
+    deleted_count = await delete_all_cameras_for_user(user_id)
+
+    return {
+        "status": "all_cameras_deleted",
+        "deleted_count": deleted_count
+    }
     

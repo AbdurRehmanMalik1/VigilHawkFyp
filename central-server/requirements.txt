@@ -11,3 +11,4 @@ types-requests
 types-orjson
 nats-py
 httpx
+python-socketio[asyncio_server]
