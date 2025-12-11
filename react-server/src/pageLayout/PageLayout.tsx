@@ -20,6 +20,7 @@ export default function PageLayout({ children }: PageLayoutProps) {
         const safeUser = await fetchCurrentUserAPI();
         if(!isLoggedIn)
           dispatch(setUserRedux(safeUser));
+        console.log(safeUser);
       } catch (error) {
         // Silently handle error, no alert
         navigate("/login", { replace: true });
