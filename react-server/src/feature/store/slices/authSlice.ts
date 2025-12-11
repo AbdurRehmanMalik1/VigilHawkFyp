@@ -1,18 +1,20 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { type SafeUser } from '../../api/user';
+import { type SafeUser, type UserSettings } from '../../api/user';
 
 interface UserState {
   id: string | null;
   username: string;
   email: string;
-  isLoggedIn: boolean
+  isLoggedIn: boolean;
+  userSettings: UserSettings | undefined;
 }
 
 const initialState: UserState = {
   id: null,
   username: '',
   email: '',
-  isLoggedIn: false
+  isLoggedIn: false,
+  userSettings: undefined,
 };
 
 const userSlice = createSlice({
@@ -24,6 +26,7 @@ const userSlice = createSlice({
       state.username = action.payload.username;
       state.email = action.payload.email;
       state.isLoggedIn = true;
+      state.userSettings = action.payload.settings;
     },
     clearUser(state) {
       state.id = null;
