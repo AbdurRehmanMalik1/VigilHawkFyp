@@ -39,4 +39,11 @@ api.interceptors.response.use(
   }
 );
 
+export const detectionApi = axios.create({
+  baseURL: 'http://localhost:8001',  // or use your container hostname if needed
+  timeout: 10000,                    // optional: timeout in ms
+  withCredentials: true,
+});
+
+
 export default api;

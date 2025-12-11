@@ -1,0 +1,13 @@
+endpoints:
+  start:
+    enabled: true
+    # optional secret for JWT auth; leave empty if you don't want authentication
+    # secret: "macilaci"  
+  static:
+    enabled: true
+  stop:
+    enabled: true
+  list:
+    enabled: true
+
+listen: []

@@ -1,17 +1,37 @@
-import { registerCameraAPI, updateCameraAPI, type CameraOut } from "../feature/api/camera";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import {
+  fetchCurrentUserAPI,
+  type SafeUser,
+} from "../feature/api/user"; // your API fetch fn
+import {
+  deleteSingleCameraAPI,
+  getRegisteredCamerasAPI,
+  registerCameraAPI,
+  updateCameraAPI,
+  type CameraOut,
+} from "../feature/api/camera";
 import { useAppDispatch, useAppSelector } from "../feature/store/reduxHooks";
-import { setCameras } from "../feature/store/slices/cameraSlice";
+import { setCameras, setGeneratedCameras, removeStoppedGeneratedCamera } from "../feature/store/slices/cameraSlice";
+import { useMutation } from "@tanstack/react-query";
 
 export default function SystemSettings() {
+  // Settings state matching your UserSettings model
+  const [settings, setSettings] = useState({
+    ai_detection: true,
+    alert_priority: "Medium",
+    dashboard_alerts: true,
+    email_alerts: false,
+  });
 
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Camera management state
   const [showModal, setShowModal] = useState(false);
   const dispatch = useAppDispatch();
-  const { cameras } = useAppSelector(state => state.camera);
+  const { cameras, generatedCameras } = useAppSelector((state) => state.camera);
 
-  // Form state
-
+  // Form state for camera modal
   const [form, setForm] = useState({
     name: "",
     location: "",
@@ -19,26 +39,68 @@ export default function SystemSettings() {
   });
   const [editingCamera, setEditingCamera] = useState<CameraOut | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // Handle input changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const { mutate: mutateFetchCameras } = useMutation({
+    mutationFn: getRegisteredCamerasAPI,
+    onSuccess: (data) => {
+      dispatch(setCameras([...data]))
+
+    }
+  })
+
+  // Fetch current user and load settings on mount
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        setLoadingUser(true);
+        const user: SafeUser = await fetchCurrentUserAPI();
+        if (user?.settings) {
+          setSettings(user.settings);
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to load user settings");
+      } finally {
+        setLoadingUser(false);
+      }
+    }
+    loadUser();
+  }, []);
+
+  // Generic handler for checkbox changes
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setSettings((prev) => ({ ...prev, [name]: checked }));
   };
 
-  // Submit handler
+  // Handler for select dropdown change
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSettings((prev) => ({ ...prev, alert_priority: e.target.value }));
+  };
+
+  // Handle input changes in the camera form
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  // Submit handler for camera modal form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    setCameraError(null);
 
     try {
       let updatedCamera: CameraOut;
       if (editingCamera) {
         // Update existing camera
         updatedCamera = await updateCameraAPI(editingCamera.id, form);
-        // Update Redux state: replace updated camera
-        dispatch(setCameras(cameras.map(cam => cam.id === updatedCamera.id ? updatedCamera : cam)));
+        dispatch(
+          setCameras(
+            cameras.map((cam) =>
+              cam.id === updatedCamera.id ? updatedCamera : cam
+            )
+          )
+        );
       } else {
         // Create new camera
         updatedCamera = await registerCameraAPI(form);
@@ -47,13 +109,15 @@ export default function SystemSettings() {
       setShowModal(false);
       setEditingCamera(null);
       setForm({ name: "", location: "", url: "" });
+      mutateFetchCameras()
     } catch (err: any) {
-      setError(err.message);
+      setCameraError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // Fill modal form for editing existing camera
   const handleEdit = (camera: CameraOut) => {
     setEditingCamera(camera);
     setForm({
@@ -63,35 +127,30 @@ export default function SystemSettings() {
     });
     setShowModal(true);
   };
+
+  if (loadingUser) return <p>Loading settings...</p>;
+  if (error) return <p className="text-red-500">Error: {error}</p>;
+
+  async function handleDelete(camera: CameraOut): Promise<void> {
+    if (!confirm(`Are you sure you want to delete camera "${camera.name}"?`)) return;
+
+    try {
+      await deleteSingleCameraAPI(camera.id);
+      dispatch(setCameras(cameras.filter(cam => cam.id !== camera.id)));
+      dispatch(setGeneratedCameras(generatedCameras.filter(cam => cam.id !== camera.id)));
+      dispatch(removeStoppedGeneratedCamera(camera.id));
+    } catch (error: any) {
+      alert(`Failed to delete camera: ${error}`);
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex h-16 items-center justify-between border-b border-gray-200/10 dark:border-gray-800/50 px-6 pr-20">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-          Settings
-        </h2>
-        <div className="flex items-center gap-1">
-          <button className="flex items-center justify-center size-10 rounded-full hover:bg-primary/10 dark:hover:bg-primary/20 text-gray-600 dark:text-gray-300">
-            <span className="material-symbols-outlined">help</span>
-          </button>
-          <div className="flex items-center gap-1">
-            <div
-              className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
-              style={{
-                backgroundImage: `url('https://www.w3schools.com/howto/img_avatar.png')`
-              }}
-            >
-            </div>
+      <header> {/* Your existing header (not shown here) */} </header>
 
-            <div className="text-sm">
-              <div className="font-bold text-gray-900 dark:text-white">
-                Azwa Nawaz
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
       <main className="flex-1 overflow-y-auto p-8">
         <div className="max-w-4xl mx-auto space-y-12">
+          {/* System Settings Section */}
           <section>
             <h3 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">
               System Settings
@@ -108,10 +167,11 @@ export default function SystemSettings() {
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
-                    defaultChecked={true}
-                    className="sr-only peer"
                     type="checkbox"
-                    defaultValue=""
+                    name="ai_detection"
+                    checked={settings.ai_detection}
+                    onChange={handleCheckboxChange}
+                    className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
@@ -125,15 +185,21 @@ export default function SystemSettings() {
                     Set the priority for system-generated alerts.
                   </p>
                 </div>
-                <select className="w-48  dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg p-2 focus:ring-primary focus:border-primary">
-                  <option>Low</option>
-                  <option>Medium</option>
-                  <option selected={true}>High</option>
-                  <option>Critical</option>
+                <select
+                  value={settings.alert_priority}
+                  onChange={handleSelectChange}
+                  className="w-48 dark:bg-background-dark/50 border border-gray-300 dark:border-gray-700 rounded-lg p-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
                 </select>
               </div>
             </div>
           </section>
+
+          {/* Notification Settings Section */}
           <section>
             <h3 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">
               Notification Settings
@@ -149,7 +215,13 @@ export default function SystemSettings() {
                   </p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input className="sr-only peer" type="checkbox" defaultValue="" />
+                  <input
+                    type="checkbox"
+                    name="dashboard_alerts"
+                    checked={settings.dashboard_alerts}
+                    onChange={handleCheckboxChange}
+                    className="sr-only peer"
+                  />
                   <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
               </div>
@@ -164,15 +236,19 @@ export default function SystemSettings() {
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
-                    className="sr-only peer"
                     type="checkbox"
-                    defaultValue=""
+                    name="email_alerts"
+                    checked={settings.email_alerts}
+                    onChange={handleCheckboxChange}
+                    className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
               </div>
             </div>
           </section>
+
+          {/* Registered Cameras Section */}
           <section>
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -214,7 +290,7 @@ export default function SystemSettings() {
                   </tr>
                 </thead>
                 <tbody className="dark:bg-background-dark divide-y divide-gray-200/10 dark:divide-gray-800/50">
-                  {cameras.map(camera => (
+                  {cameras.map((camera) => (
                     <tr key={camera.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                         {camera.name}
@@ -223,10 +299,12 @@ export default function SystemSettings() {
                         {camera.location}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${camera?.status === "Online"
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${camera?.status === "Online"
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
-                          }`}>
+                            }`}
+                        >
                           {camera.status}
                         </span>
                       </td>
@@ -238,6 +316,7 @@ export default function SystemSettings() {
                           Edit
                         </button>
                         <button
+                          onClick={() => handleDelete(camera)}
                           className="text-red-600 hover:text-red-800"
                         // You can add delete logic here if you want
                         >
@@ -250,11 +329,13 @@ export default function SystemSettings() {
               </table>
             </div>
           </section>
+
+          {/* Camera Modal */}
           {showModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
               <div className="bg-white dark:bg-gray-900 rounded-lg p-6 w-full max-w-md">
                 <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-                  Register Camera
+                  {editingCamera ? "Edit Camera" : "Register Camera"}
                 </h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
@@ -312,14 +393,19 @@ export default function SystemSettings() {
                     />
                   </div>
 
-                  {error && (
-                    <p className="text-red-500 text-sm">{error}</p>
+                  {cameraError && (
+                    <p className="text-red-500 text-sm">{cameraError}</p>
                   )}
 
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"
-                      onClick={() => setShowModal(false)}
+                      onClick={() => {
+                        setShowModal(false);
+                        setEditingCamera(null);
+                        setForm({ name: "", location: "", url: "" });
+                        setCameraError(null);
+                      }}
                       className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
                     >
                       Cancel
@@ -336,6 +422,7 @@ export default function SystemSettings() {
               </div>
             </div>
           )}
+
           <footer className="flex justify-end gap-1 pt-8 border-t border-gray-200/10 dark:border-gray-800/50">
             <button className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
               Restore Defaults
@@ -347,5 +434,5 @@ export default function SystemSettings() {
         </div>
       </main>
     </div>
-  )
+  );
 }

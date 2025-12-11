@@ -58,6 +58,8 @@ export async function updateCameraAPI(id: string, data: Partial<Omit<CameraOut, 
 
 export interface StartCameraResponse {
   status: string; // e.g. "started"
+  camera_url: string;
+  camera_id: string;
 }
 
 
@@ -68,5 +70,37 @@ export async function startCameraAPI(cameraId: string): Promise<StartCameraRespo
   } catch (error: any) {
     console.error("Failed to start camera:", error);
     throw error?.response?.data?.detail || error.message || "Failed to start camera";
+  }
+}
+
+export async function stopCameraAPI(cameraId: string): Promise<{ status: string; camera_id: string }> {
+  try {
+    const response = await api.post<{ status: string; camera_id: string }>(`camera/stop/${cameraId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to stop camera:", error);
+    throw error?.response?.data?.detail || error.message || "Failed to stop camera";
+  }
+}
+
+// Delete single camera
+export async function deleteSingleCameraAPI(cameraId: string): Promise<{ status: string; camera_id: string }> {
+  try {
+    const response = await api.delete<{ status: string; camera_id: string }>(`camera/${cameraId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to delete camera:", error);
+    throw error?.response?.data?.detail || error.message || "Failed to delete camera";
+  }
+}
+
+// Delete all cameras for user
+export async function deleteAllCamerasAPI(): Promise<{ status: string; deleted_count: number }> {
+  try {
+    const response = await api.delete<{ status: string; deleted_count: number }>("camera/");
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to delete all cameras:", error);
+    throw error?.response?.data?.detail || error.message || "Failed to delete all cameras";
   }
 }

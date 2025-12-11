@@ -12,10 +12,12 @@ router = APIRouter()
 
 DETECTION_BACKEND_URL = "http://detection-server:8001"
 
+REAL_DETECTION_BACKEND_URL = "http://localhost:8001"
+
 
 @router.post("/start/{camera_id}")
 async def start_camera(camera_id: str, req: Request):
-    print(camera_id)
+    #print(camera_id)
     try:
         camera = await get_single_camera(req.state.user.id, PydanticObjectId(camera_id))
         if not camera:
@@ -24,28 +26,92 @@ async def start_camera(camera_id: str, req: Request):
         raise HTTPException(500, f"Failed to retrieve camera: {e}")
 
     data = dict()
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            print(f"{DETECTION_BACKEND_URL}/video/start_camera")
-            resp = await client.post(
-                f"{DETECTION_BACKEND_URL}/video/start_camera",
-                params={"camera_id": camera_id, "camera_url": str(camera.url)}
-            )
-            # if resp.status_code != 200:
-            #     raise HTTPException(502, "Failed to start camera on detection backend")
-            data: dict = resp.json()
-    except HTTPException as e:
-        print(e)
-        raise
-    except Exception as e:
-        raise HTTPException(500, f"Error while calling detection backend: {e}")
+    if "rtsp" in camera.url.encoded_string():
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    f"{DETECTION_BACKEND_URL}/hls_stream/start_camera",
+                    json={"camera_id": camera_id, "camera_url": str(camera.url)}
+                )
+                # if resp.status_code != 200:
+                #     raise HTTPException(502, "Failed to start camera on detection backend")
+                data: dict = resp.json()
+        except HTTPException as e:
+                #print(e)
+                raise HTTPException(500, f"Error from start camera: {e}")
+        except Exception as e:
+                raise HTTPException(500, f"Error while calling detection backend: {e}")
+        return {
+            "camera_url": data['camera_url'],
+            "camera_id": data.get("camera_id"),
+            "status": "started"
+        }
+    else:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    f"{DETECTION_BACKEND_URL}/video/start_camera",
+                    params={"camera_id": camera_id, "camera_url": str(camera.url)}
+                )
+                # if resp.status_code != 200:
+                #     raise HTTPException(502, "Failed to start camera on detection backend")
+                data: dict = resp.json()
+        except HTTPException as e:
+            #print(e)
+            raise HTTPException(500, f"Error from start camera: {e}")
+        except Exception as e:
+            raise HTTPException(500, f"Error while calling detection backend: {e}") 
+        return {
+            "status": "started",
+            "camera_id": data.get("camera_id"),
+            "camera_url": f'{REAL_DETECTION_BACKEND_URL}/video/video_feed/{camera_id}'
+        }
 
+
+@router.post("/stop/{camera_id}")
+async def stop_camera(camera_id: str, req: Request):
+    #print(camera_id)
+    try:
+        camera = await get_single_camera(req.state.user.id, PydanticObjectId(camera_id))
+        if not camera:
+            raise HTTPException(404, "Camera not found or not authorized")
+    except Exception as e:
+        raise HTTPException(500, f"Failed to retrieve camera: {e}")
+
+    data = dict()
+    if 'rtsp' not in camera.url.encoded_string():
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    f"{DETECTION_BACKEND_URL}/video/stop_camera",
+                    params={"camera_id": camera_id}
+                )
+                data: dict = resp.json()
+        except HTTPException as e:
+            #print(e)
+            raise
+        except Exception as e:
+            raise HTTPException(500, f"Error while calling detection backend: {e}")
+    else:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    f"{DETECTION_BACKEND_URL}/hls_stream/stop_camera",
+                    params={"camera_id": camera_id}
+                )
+                data: dict = resp.json()
+        except HTTPException as e:
+            #print(e)
+            raise
+        except Exception as e:
+            raise HTTPException(500, f"Error while calling detection backend: {e}")
+        
     return {
-        "status": "started",
-        "camera_id": data.get("camera_id"),
-        "camera_url": f'{DETECTION_BACKEND_URL}/video/video_stream/{camera_id}'
+            "status": data.get('status'),
+            "camera_id": camera_id,
     }
     
+
 
 @router.get("/video_feed/{camera_id}")
 async def proxy_video_feed(camera_id: str):
@@ -87,7 +153,7 @@ async def delete_single_camera(camera_id: str, req: Request):
 
 @router.post("/", response_model=CameraOut, status_code=201)
 async def register_camera(body: CameraRegister, req: Request)->CameraOut:
-    print(req.state.user)
+    #print(req.state.user)
     body.registered_by = req.state.user.id
     return await create_camera(body)
 

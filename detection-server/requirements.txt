@@ -12,3 +12,4 @@ nats-py
 torch
 torchvision
 torchaudio
+httpx

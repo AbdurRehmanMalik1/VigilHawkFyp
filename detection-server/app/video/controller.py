@@ -2,7 +2,7 @@ import asyncio
 import subprocess
 import cv2
 from fastapi import APIRouter, HTTPException
-from app.utils.frame import generate_frames , getVideoCapture, getFrameMeasurement
+from app.utils.frame import getVideoCapture, getFrameMeasurement, generate_frames_rtsp
 
 router = APIRouter()
 
@@ -24,24 +24,9 @@ async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
     cap = getVideoCapture(camera_url)
     width , height = getFrameMeasurement(cap)
 
-
-    # ffmpeg_cmd = [
-    #     "ffmpeg",
-    #     "-y",
-    #     "-f", "rawvideo",
-    #     "-pix_fmt", "bgr24",
-    #     "-s", f"{width}x{height}",
-    #     "-r", str(fps),
-    #     "-i", "-",
-    #     "-vf", "format=yuv420p",       # Add this line to convert pixel format
-    #     "-c:v", "libx264",
-    #     "-preset", "veryfast",
-    #     "-tune", "zerolatency",
-    #     "-f", "rtsp",
-    #     "-rtsp_transport", "tcp",
-    #     rtsp_out_url,
-    # ]
-    
+    if width == 0: width = 640
+    if height == 0: height = 480
+   
     ffmpeg_cmd = [
         "ffmpeg",
         "-y",
@@ -59,7 +44,7 @@ async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
         rtsp_out_url,
     ]
 
-    print(f"[{camera_id}] Starting FFmpeg with command: {' '.join(ffmpeg_cmd)}")
+    #print(f"[{camera_id}] Starting FFmpeg with command: {' '.join(ffmpeg_cmd)}")
     ffmpeg_process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
     ffmpeg_processes[camera_id] = ffmpeg_process
     
@@ -67,10 +52,10 @@ async def camera_task(camera_id: str, camera_url: str, rtsp_out_url: str):
     
     try:
         frame_count = 0
-        for frame in generate_frames(camera_url):
+        for frame in generate_frames_rtsp(camera_url , width , height, cap, camera_id):
             # Write frame to ffmpeg stdin using run_in_executor to avoid blocking
             try:
-                await loop_exce_function(loop, ffmpeg_process.stdin.write, frame, ffmpeg_process.stdin.flush)
+                await loop_exce_function(loop, ffmpeg_process.stdin.write, frame, ffmpeg_process.stdin.flush) # type: ignore
             except BrokenPipeError:
                 #print(f"[{camera_id}] Broken pipe, FFmpeg process might have exited")
                 break
@@ -104,9 +89,11 @@ async def start_camera(camera_id: str, camera_url: str):
     task = asyncio.create_task(camera_task(camera_id, camera_url, rtsp_out_url))
     running_cameras[camera_id] = task
 
-
-
-    return {"status": "started", "camera_id": camera_id, "rtsp_out_url": rtsp_out_url.replace('rtsp-server' ,'localhost')}
+    return {
+        "status": "started", 
+        "camera_id": camera_id, 
+        "rtsp_out_url": rtsp_out_url.replace('rtsp-server' ,'localhost')
+    }
 
 
 @router.post("/stop_camera")

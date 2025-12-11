@@ -43,18 +43,20 @@ fastapi_app.add_middleware(
 fastapi_app.middleware("http")(auth_middleware)
 
 
-@fastapi_app.middleware("http")
-async def print_request_body(request: Request, call_next):
-    body = await request.body()
-    print("Request Body:", body.decode('utf-8'))
+# switch of for testing production
 
-    async def receive():
-        return {"type": "http.request", "body": body}
+# @fastapi_app.middleware("http")
+# async def print_request_body(request: Request, call_next):
+#     body = await request.body()
+#     print("Request Body:", body.decode('utf-8'))
 
-    request._receive = receive  # Re-assign to allow downstream reading
+#     async def receive():
+#         return {"type": "http.request", "body": body}
 
-    response = await call_next(request)
-    return response
+#     request._receive = receive  # Re-assign to allow downstream reading
+
+#     response = await call_next(request)
+#     return response
 
 fastapi_app.include_router(auth_router, prefix="/auth", tags=["auth"])
 fastapi_app.include_router(user_router, prefix="/user" , tags=["user"])

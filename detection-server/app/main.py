@@ -2,7 +2,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.video.controller import router as video_router
+from app.video.controller import router as rtsp_router
 from app.video.hls_controller import router as hls_router
 from app.video.mpeg_controller import router as mpeg_router
 
@@ -12,9 +12,9 @@ origins = [
     "http://127.0.0.1:8000"
 ]
 
-HLS_ROOT = Path("/app/hls")
+HLS_ROOT = Path("/app/videos")
 HLS_ROOT.mkdir(exist_ok=True)
-app.mount("/hls", StaticFiles(directory=HLS_ROOT), name="hls")
+app.mount("/hls_static_stream", StaticFiles(directory=HLS_ROOT), name="hls_static_stream")
 
 # @asynccontextmanager
 # async def lifespan(app: FastAPI):
@@ -53,7 +53,7 @@ app.add_middleware(
 
 app.include_router(hls_router , prefix="/hls_stream", tags=["hls_stream"])
 app.include_router(mpeg_router , prefix="/video", tags=["video"])
-# app.include_router(mpeg_router, prefix="/mpeg", tags=["mpeg"])
+app.include_router(rtsp_router, prefix="/rtsp", tags=["mpeg"])
 
 @app.get("/")
 async def something():

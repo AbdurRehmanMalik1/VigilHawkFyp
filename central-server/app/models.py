@@ -1,8 +1,9 @@
-from typing import Optional, Union
-from beanie import Document, Link, PydanticObjectId
-from pydantic import Field, AnyUrl
-from app.global_dto import SafeUser
+from typing import List, Optional
+from beanie import Document, PydanticObjectId
+from pydantic import BaseModel, Field, AnyUrl
+from app.global_dto import SafeUser, UserSettings
 from datetime import datetime
+
 
 class User(Document):
     id: Optional[PydanticObjectId] = Field(default_factory=PydanticObjectId, alias="_id")
@@ -15,8 +16,9 @@ class User(Document):
             id=self.id,               
             username=self.username,
             email=self.email,
+            settings=self.settings
         )
-
+    settings: UserSettings = Field(default_factory=UserSettings)
     class Settings:
         name = "users"
 
@@ -39,12 +41,8 @@ class CameraConfiguration(Document):
     email_alerts: bool = Field(default=False)
     allowed_time_range_from: datetime
     allowed_time_range_to: datetime
+    camera_id: PydanticObjectId
 
-class UserSettings(Document):
-    ai_detection: bool = Field(default=True)
-    alert_priority: str = Field(default='Medium')
-    dashboard_alerts: bool = Field(default=True)
-    email_alerts: bool = Field(default=False)
 
 class Video(Document):
     id: Optional[PydanticObjectId] = Field(default_factory=PydanticObjectId, alias="_id")
@@ -55,9 +53,21 @@ class Photo(Document):
     name: str = Field(min_length=1)
 
 
+class Detection(BaseModel):
+    class_id: int
+    class_name: str
+    confidence: float
+    bbox: List[int]  # [x1, y1, x2, y2]
+
 class Alert(Document):
+    id: Optional[PydanticObjectId] = Field(default_factory=PydanticObjectId, alias="_id")
     timestamp: datetime
-    event_type: str
-    camera_id: PydanticObjectId # refers to the camera
-    description: str
-    status: str
+    camera_id: PydanticObjectId  # Or your PydanticObjectId type
+    frame_id: int
+    detections: List[Detection]
+    #description: str = ""  # optional description field
+    status: str = "new"  # e.g., new, acknowledged, resolved
+
+
+    class Settings:
+        name = "alerts"  
