@@ -1,9 +1,12 @@
 import type { JSX } from "react";
 import { NavLink, useNavigate } from "react-router";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { fetchCurrentUserAPI } from "../feature/api/user";
 import { useAppDispatch, useAppSelector } from "../feature/store/reduxHooks";
 import { clearUser, setUser as setUserRedux } from "../feature/store/slices/authSlice";
+import socket from "../utils/socket";
+import NotificationToast from "../components/NotificationToast";
+import type { NotifItem } from "../components/NotificationToast";
 
 type PageLayoutProps = {
   children: JSX.Element;
@@ -11,18 +14,107 @@ type PageLayoutProps = {
 
 export default function PageLayout({ children }: PageLayoutProps) {
   const { username, isLoggedIn } = useAppSelector(state => state.user);
+  const userState = useAppSelector(state => state.user); // contains settings/userSettings
+  const cameraList = useAppSelector(state => state.camera.cameras ?? []);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+
+  // notifications state
+  const [toasts, setToasts] = useState<NotifItem[]>([]);
+
+  // audio unlock state and ref
+  const audioUnlockedRef = useRef(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // helper to get camera name from id
+  const getCameraName = useCallback((camera_id?: string) => {
+    if (!camera_id) return undefined;
+    const cam = cameraList.find((c: any) => c.id === camera_id || c._id === camera_id);
+    return cam?.name ?? camera_id;
+  }, [cameraList]);
+
+  // ensure user gesture unlocks AudioContext (browsers block autoplay otherwise)
+  useEffect(() => {
+    const unlockAudio = async () => {
+      try {
+        if (!audioCtxRef.current) {
+          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          audioCtxRef.current = ctx;
+        }
+        if (audioCtxRef.current.state === "suspended") {
+          await audioCtxRef.current.resume();
+        }
+        audioUnlockedRef.current = true;
+      } catch (e) {
+        audioUnlockedRef.current = false;
+      }
+    };
+
+    // attempt to unlock on first user interaction
+    const onFirstInteraction = () => {
+      unlockAudio();
+    };
+    window.addEventListener("pointerdown", onFirstInteraction, { once: true });
+    window.addEventListener("keydown", onFirstInteraction, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", onFirstInteraction);
+      window.removeEventListener("keydown", onFirstInteraction);
+    };
+  }, []);
+
+  // play a short beep using WebAudio API (only if unlocked)
+  const playBeep = useCallback(() => {
+    try {
+      const ctx = audioCtxRef.current ?? new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioCtxRef.current = ctx;
+      if (ctx.state === "suspended") return;
+
+      // harsher alert: two short square-wave beeps (higher frequency, short gap)
+      const playSingle = (freq: number, duration = 0.12, gainVal = 0.12) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "square"; // harsher timbre
+        o.frequency.value = freq;
+        o.connect(g);
+        g.connect(ctx.destination);
+        g.gain.value = gainVal;
+        const now = ctx.currentTime;
+        o.start(now);
+        // quick fade
+        g.gain.setValueAtTime(gainVal, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        o.stop(now + duration);
+      };
+
+      playSingle(1200, 0.12, 0.14);
+      // second short beep after small gap
+      setTimeout(() => {
+        try { playSingle(950, 0.12, 0.12); } catch {}
+      }, 150);
+    } catch (e) {
+      // no-op
+    }
+  }, []);
+
+  // optional: visible "Enable sounds" button in header to manually enable
+  const enableSound = async () => {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      await audioCtxRef.current.resume();
+      audioUnlockedRef.current = true;
+      // play a test beep
+      playBeep();
+    } catch {}
+  };
 
   useEffect(() => {
     async function fetchUser() {
       try {
         const safeUser = await fetchCurrentUserAPI();
-        if(!isLoggedIn)
-          dispatch(setUserRedux(safeUser));
-        console.log(safeUser);
+        if(!isLoggedIn) dispatch(setUserRedux(safeUser));
       } catch (error) {
-        // Silently handle error, no alert
         navigate("/login", { replace: true });
       }
     }
@@ -35,24 +127,67 @@ export default function PageLayout({ children }: PageLayoutProps) {
     navigate('/login', { replace: true });
   };
 
+  // socket listener for global notifications
+  useEffect(() => {
+    // check user setting (supports userSettings shape; fall back to true)
+    const enabled = (userState as any)?.userSettings?.dashboard_alerts ?? true;
+    if (!enabled) return;
+
+    const handler = (incoming: any) => {
+      // support both payload wrapper and direct detection event
+      const payload = incoming?.payload ?? incoming;
+      const camera_id = payload?.camera_id ?? payload?.cameraId ?? payload?.camera;
+      const detections = payload?.detections ?? payload?.detectionsList ?? payload?.dets ?? [];
+      const timestamp = payload?.timestamp ?? payload?.time ?? new Date().toISOString();
+
+      const item: NotifItem = {
+        id: `${camera_id ?? "unknown"}_${Date.now()}`,
+        camera_id,
+        camera_name: getCameraName(camera_id),
+        timestamp,
+        detections,
+        raw: payload,
+      };
+
+      // insert at top and keep last 50
+      setToasts(prev => [item, ...prev].slice(0, 50));
+
+      // play sound only if audio was unlocked by user interaction OR user manually enabled
+      if (audioUnlockedRef.current) playBeep();
+    };
+
+    socket.on("notification", handler);
+    socket.on("detection", handler);
+
+    return () => {
+      socket.off("notification", handler);
+      socket.off("detection", handler);
+    };
+  }, [userState, cameraList, getCameraName, playBeep]);
+
+  const dismiss = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+
   return (
-    <div
-      id="pageLayout"
-      className="flex h-screen bg-background-dark text-light font-display border-none"
-    >
+    <div id="pageLayout" className="flex h-screen bg-background-dark text-light font-display border-none">
       {/* Sidebar */}
-      <aside
-        id="sidebar"
-        className="hidden sm:flex flex-col w-80 bg-background-dark/50 transition-all duration-300"
-      >
+      <aside id="sidebar" className="hidden sm:flex flex-col w-80 bg-background-dark/50 transition-all duration-300">
         <div className="flex items-center justify-between h-16 border-b border-gray-700/20 px-4">
           <h1 className="text-3xl font-bold text-light">VigilHawk</h1>
           {/* Show username here if user loaded */}
-          {username && (
-            <span className="text-sm italic text-secondary">
-              {username}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {username && (
+              <span className="text-sm italic text-secondary">
+                {username}
+              </span>
+            )}
+            <button
+              onClick={enableSound}
+              className="text-xs px-2 py-1 rounded bg-blue-800/60 hover:bg-blue-800/80 text-white"
+              title="Enable notification sounds"
+            >
+              Enable Sounds
+            </button>
+          </div>
         </div>
 
         <nav className="flex-1 px-2 py-4 space-y-4">
@@ -147,6 +282,9 @@ export default function PageLayout({ children }: PageLayoutProps) {
       <main className="flex-1 overflow-y-auto p-2 bg-background-dark">
         {children}
       </main>
+
+      {/* Notification toasts rendered on every page */}
+      <NotificationToast items={toasts} onDismiss={dismiss} />
     </div>
   );
 }
