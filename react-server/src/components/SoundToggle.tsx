@@ -31,7 +31,7 @@ export default function SoundToggle() {
           Toggle Dashboard Sound
         </h4>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Default Active: Toggle Dashboard Sound to be alerted about notifications.
+          Default Active: Toggle Dashboard Sound to be alerted about notifications. &#40;If Dashboard alerts are off system produces no sound&#41;
         </p>
       </div>
       <label className="relative inline-flex items-center cursor-pointer">
@@ -58,10 +58,10 @@ export default function SoundToggle() {
 //     aria-label="Toggle sound"
 //   />
 //   <div
-//     className="w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full 
-//                    peer peer-checked:bg-primary 
-//                    after:content-[''] after:absolute after:top-0.5 after:left-[2px] 
-//                    after:bg-white after:border-gray-300 after:border after:rounded-full 
+//     className="w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full
+//                    peer peer-checked:bg-primary
+//                    after:content-[''] after:absolute after:top-0.5 after:left-[2px]
+//                    after:bg-white after:border-gray-300 after:border after:rounded-full
 //                    after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"
 //   />
 //   <span className="ml-3 text-sm font-medium text-gray-900 dark:text-white select-none">

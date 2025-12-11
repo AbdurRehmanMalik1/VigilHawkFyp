@@ -201,36 +201,35 @@ def generate_frames(camera_url: str, camera_id: str, jpeg_quality: int = 50):
             break
 
         frame_id += 1
-
-        results = model(frame, verbose=False)
-        detections = results[0].boxes
-
         detection_list = []
 
-        for box in detections:
-            cls_id = int(box.cls[0])
-            conf = float(box.conf[0])
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            class_name = model.names[cls_id]
+        if 0 == 0:
+            results = model(frame, verbose=False)
+            detections = results[0].boxes
+            for box in detections:
+                cls_id = int(box.cls[0])
+                conf = float(box.conf[0])
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                class_name = model.names[cls_id]
 
-            if class_name == 'person':
-                color = (255, 0, 0)
-            elif class_name == 'weapon':
-                color = (0, 0, 255)
-            else:
-                color = (0, 255, 0)
+                if class_name == 'person':
+                    color = (255, 0, 0)
+                elif class_name == 'weapon':
+                    color = (0, 0, 255)
+                else:
+                    color = (0, 255, 0)
 
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            label = f"{class_name} {conf:.2f}"
-            cv2.putText(frame, label, (x1, y1 - 5),
-                        cv2.FONT_HERSHEY_PLAIN, 2, color, 2)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                label = f"{class_name} {conf:.2f}"
+                cv2.putText(frame, label, (x1, y1 - 5),
+                            cv2.FONT_HERSHEY_PLAIN, 5, color, 2)
 
-            detection_list.append({
-                "class_id": cls_id,
-                "class_name": class_name,
-                "confidence": conf,
-                "bbox": [x1, y1, x2, y2]
-            })
+                detection_list.append({
+                    "class_id": cls_id,
+                    "class_name": class_name,
+                    "confidence": conf,
+                    "bbox": [x1, y1, x2, y2]
+                })
 
         if detection_list:
             log_data = {

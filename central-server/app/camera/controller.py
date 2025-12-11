@@ -10,6 +10,7 @@ from app.utils.camera_util import check_camera_url_reachable
 
 router = APIRouter()
 
+#DETECTION_BACKEND_URL = "http://detection-server:8001"
 DETECTION_BACKEND_URL = "http://detection-server:8001"
 
 REAL_DETECTION_BACKEND_URL = "http://localhost:8001"

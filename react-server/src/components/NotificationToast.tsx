@@ -12,14 +12,10 @@ type Props = {
   onDismiss: (id: string) => void;
 };
 
-import { useState } from "react";
-
 export default function NotificationToast({ items, onDismiss }: Props) {
-  const [showHistory, setShowHistory] = useState(false);
   if (!items || items.length === 0) return null;
 
   const latest = items[0];
-  const count = items.length;
 
   return (
     <div
@@ -27,7 +23,6 @@ export default function NotificationToast({ items, onDismiss }: Props) {
       className="fixed top-16 left-0 right-0 pointer-events-none z-[9999] flex justify-center px-4"
     >
       <div className="pointer-events-auto w-full max-w-xl mx-auto">
-        {/* Primary single toast (latest) */}
         <div
           key={latest.id}
           className={`mb-4 transform transition duration-300 ease-out
@@ -71,59 +66,7 @@ export default function NotificationToast({ items, onDismiss }: Props) {
               <div className="text-xs text-white/60">No extra details</div>
             )}
           </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              onClick={() => setShowHistory(v => !v)}
-              className="text-xs px-3 py-1 rounded bg-blue-900/70 hover:bg-blue-900/90 text-white"
-            >
-              Recent ({count})
-            </button>
-          </div>
         </div>
-
-        {/* History panel (toggle) */}
-        {showHistory && (
-          <div className="mt-2 bg-gradient-to-r from-[#071024] via-[#07182b] to-black text-white rounded-xl shadow-2xl p-3 border border-white/6 max-h-[60vh] overflow-auto">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-semibold">Recent notifications</div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowHistory(false)}
-                  className="text-xs px-2 py-1 rounded bg-white/6 hover:bg-white/8 text-white"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            <ul className="space-y-2">
-              {items.slice(0, 50).map((n) => (
-                <li key={n.id} className="flex items-start gap-3 p-2 rounded hover:bg-white/3">
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-400 mt-1" />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">{n.camera_name ?? n.camera_id ?? "Camera"}</div>
-                      <div className="text-xs text-white/60">{new Date(n.timestamp).toLocaleString()}</div>
-                    </div>
-                    <div className="text-xs text-white/80">
-                      {n.detections && n.detections.length > 0
-                        ? `${n.detections.length} detections — ${n.detections.slice(0,2).map((d:any)=>d.class_name ?? d.label ?? 'obj').join(', ')}`
-                        : 'No details'}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => onDismiss(n.id)}
-                    className="text-white/60 hover:text-white text-sm"
-                    aria-label="Remove"
-                  >
-                    ✕
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
 
       <style>{`

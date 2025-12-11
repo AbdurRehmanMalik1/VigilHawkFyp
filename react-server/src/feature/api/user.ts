@@ -20,3 +20,13 @@ export async function fetchCurrentUserAPI(): Promise<SafeUser> {
   const response = await api.get<SafeUser>('/user/me');
   return response.data;
 }
+
+export async function updateSystemSettingsAPI(settings: UserSettings): Promise<UserSettings> {
+  try {
+    const response = await api.post<UserSettings>('user/settings/update', settings);
+    return response.data;
+  } catch (error) {
+    console.error('Update system settings failed:', error);
+    throw error;
+  }
+}

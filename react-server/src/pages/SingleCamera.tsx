@@ -280,6 +280,48 @@ export default function SingleCamera() {
     return null;
   }
 
+  const handlePrintTable = () => {
+    const table = document.getElementById("log_table");
+    if (!table) {
+      alert("Table not found!");
+      return;
+    }
+
+    const printWindow = window.open("", "PRINT", "height=600,width=800")!;
+
+    printWindow.document.write(`
+    <html>
+      <head>
+        <title>Report</title>
+        <style>
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: Arial, sans-serif;
+          }
+          table, th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+          }
+          th {
+            background: #f4f4f4;
+            font-weight: bold;
+          }
+        </style>
+      </head>
+      <body>
+        <h2>Report</h2>
+        ${table.outerHTML}
+      </body>
+    </html>
+  `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
+
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="p-8">
@@ -329,7 +371,7 @@ export default function SingleCamera() {
               </h3>
 
               <div className="overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
-                <table className="w-full text-left text-sm text-black/80 dark:text-white/80">
+                <table className="w-full text-left text-sm text-black/80 dark:text-white/80" id="log_table">
                   <thead className="bg-black/5 dark:bg-white/5">
                     <tr>
                       <th className="px-4 py-3 font-medium">Timestamp</th>
@@ -343,7 +385,7 @@ export default function SingleCamera() {
                     {tableNotifications.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-4 py-3">
-                          No notifications yet
+                          No Logs yet
                         </td>
                       </tr>
                     ) : (
@@ -361,85 +403,6 @@ export default function SingleCamera() {
               </div>
             </div>
           </div>
-          {/* Sidebar */}
-          {/* <div className="col-span-3 lg:col-span-1 space-y-6">
-            <div>
-              <h3 className="text-lg font-bold text-black dark:text-white mb-4">
-                Detected Objects
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-black/10 dark:bg-white/10 text-black dark:text-white">
-                    <svg
-                      fill="currentColor"
-                      height={24}
-                      viewBox="0 0 256 256"
-                      width={24}
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path d="M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56.06,56.06,0,0,1,72,96Z"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-medium text-black dark:text-white">Humanoid</p>
-                    <p className="text-sm text-black/60 dark:text-white/60">Living Room</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5 text-black dark:text-white">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 512 512"
-                      width={70}
-                      height={70}
-                      fill="none"
-                    >
-                      <rect width={512} height={512} rx={96} ry={96} fill="#1b232a" />
-                      <path
-                        d="M120 200h200v40h60c10 0 20 8 20 18v10h40v26h-40v10c0 10-10 18-20 18h-70l-10 60h-50l10-60h-60l-20 60h-50l20-60h-20c-10 0-20-8-20-18v-64c0-10 10-20 20-20z"
-                        stroke="#ffffff"
-                        strokeWidth={24}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-medium text-black dark:text-white">Weapon</p>
-                    <p className="text-sm text-black/60 dark:text-white/60">Living Room</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold text-black dark:text-white mb-2">Threat Summary</h3>
-              <p className="text-sm text-black/80 dark:text-white/80">
-                Multiple anomalies detected. Threat level elevated due to potential intrusion and suspicious objects.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-black dark:text-white">
-                  Enable Real-Time Alerts
-                </span>
-                <label className="relative inline-flex cursor-pointer items-center">
-                  <input className="peer sr-only" type="checkbox" defaultValue="" />
-                  <div className="peer h-6 w-11 rounded-full bg-black/20 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-white/10 dark:after:border-black/10 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50"></div>
-                </label>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-3">
-              <button className="flex h-10 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-bold text-white transition-opacity hover:opacity-90">
-                <span>Capture Snapshot</span>
-              </button>
-              <button className="flex h-10 w-full items-center justify-center rounded-lg bg-black/10 dark:bg-white/10 px-4 text-sm font-bold text-black dark:text-white transition-colors hover:bg-black/20 dark:hover:bg-white/20">
-                <span>Generate Report</span>
-              </button>
-            </div>
-          </div> */}
           <div className="col-span-3 lg:col-span-1 space-y-6">
             <div>
               <h3 className="text-lg font-bold text-black dark:text-white mb-4">
@@ -499,7 +462,7 @@ export default function SingleCamera() {
                 )}
               </div>
             </div>
-            <div className="mt-6 space-y-3">
+            <div className="mt-6 space-y-3" onClick={handlePrintTable}>
               <button className="flex h-10 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-bold text-white transition-opacity hover:opacity-90">
                 <span>Capture Snapshot</span>
               </button>

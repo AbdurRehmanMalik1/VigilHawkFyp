@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import VigilHawkIcon from '../assets/Vigil Hawk icon.png';
 import { TailSpin } from 'react-loader-spinner';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
 import { loginUserAPI, type Token } from '../feature/api/auth';
 import { setUser } from '../feature/store/slices/authSlice';
@@ -136,6 +136,15 @@ export default function Login() {
             >
               Forgot Password?
             </a>
+          </div>
+
+          <div className="flex flex-row gap-x-1 mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
+            <Link
+              to="/signup"
+              className="font-medium text-primary hover:underline"
+            >
+              Sign Up
+            </Link>
           </div>
 
           <button

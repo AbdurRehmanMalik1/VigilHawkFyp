@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import {
   fetchCurrentUserAPI,
+  updateSystemSettingsAPI,
   type SafeUser,
+  type UserSettings,
 } from "../feature/api/user"; // your API fetch fn
 import {
   deleteSingleCameraAPI,
@@ -14,10 +16,11 @@ import { useAppDispatch, useAppSelector } from "../feature/store/reduxHooks";
 import { setCameras, setGeneratedCameras, removeStoppedGeneratedCamera } from "../feature/store/slices/cameraSlice";
 import { useMutation } from "@tanstack/react-query";
 import SoundToggle from "../components/SoundToggle";
+import { updateSystemSettings } from "../feature/store/slices/authSlice";
 
 export default function SystemSettings() {
   // Settings state matching your UserSettings model
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<UserSettings>({
     ai_detection: true,
     alert_priority: "Medium",
     dashboard_alerts: true,
@@ -31,6 +34,17 @@ export default function SystemSettings() {
   const [showModal, setShowModal] = useState(false);
   const dispatch = useAppDispatch();
   const { cameras, generatedCameras } = useAppSelector((state) => state.camera);
+
+
+  const { mutate: mutateChangeSettings } = useMutation({
+    mutationFn: updateSystemSettingsAPI,
+    onError: (error: Error) => {
+      alert(`Failed to update settings: ${error.message || error}`);
+    },
+    onSuccess: (settings) => {
+      dispatch(updateSystemSettings(settings))
+    }
+  });
 
   // Form state for camera modal
   const [form, setForm] = useState({
@@ -76,7 +90,7 @@ export default function SystemSettings() {
 
   // Handler for select dropdown change
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSettings((prev) => ({ ...prev, alert_priority: e.target.value }));
+    setSettings((prev) => ({ ...prev, alert_priority: e.target.value as UserSettings['alert_priority'] }));
   };
 
   // Handle input changes in the camera form
@@ -145,6 +159,22 @@ export default function SystemSettings() {
     }
   }
 
+  const handleSubmitSettingsChange = () => {
+    mutateChangeSettings(settings);
+  }
+
+  const handleRestoreDefault = () => {
+    const defaultUserSettings = {
+      ai_detection: true,
+      alert_priority: "Medium" as "Low" | "Medium" | "High" | "Critical",
+      dashboard_alerts: true,
+      email_alerts: false,
+    };
+    setSettings(defaultUserSettings);
+    mutateChangeSettings(defaultUserSettings);
+  }
+
+
   return (
     <div className="flex flex-1 flex-col">
       <header> {/* Your existing header (not shown here) */} </header>
@@ -206,7 +236,7 @@ export default function SystemSettings() {
               Notification Settings
             </h3>
             <div className="space-y-4">
-              <SoundToggle/>
+              <SoundToggle />
               <div className="flex items-center justify-between p-4 rounded-lg  dark:bg-background-dark/50">
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white">
@@ -426,10 +456,10 @@ export default function SystemSettings() {
           )}
 
           <footer className="flex justify-end gap-1 pt-8 border-t border-gray-200/10 dark:border-gray-800/50">
-            <button className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
+            <button onClick={handleRestoreDefault} className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
               Restore Defaults
             </button>
-            <button className="px-6 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary/90">
+            <button onClick={handleSubmitSettingsChange} className="px-6 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary/90">
               Save Changes
             </button>
           </footer>

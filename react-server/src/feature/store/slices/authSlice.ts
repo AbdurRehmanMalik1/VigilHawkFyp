@@ -34,8 +34,11 @@ const userSlice = createSlice({
       state.email = '';
       state.isLoggedIn = false;
     },
+    updateSystemSettings(state , action: PayloadAction<UserSettings>){
+      state.userSettings = action.payload;
+    }
   },
 });
 
-export const { setUser, clearUser } = userSlice.actions;
+export const { setUser, clearUser, updateSystemSettings } = userSlice.actions;
 export default userSlice.reducer;
