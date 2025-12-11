@@ -26,6 +26,10 @@ export default function PageLayout({ children }: PageLayoutProps) {
   const audioUnlockedRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
+  // bell dropdown state & ref
+  const [showBellPanel, setShowBellPanel] = useState(false);
+  const bellRef = useRef<HTMLDivElement | null>(null);
+
   // helper to get camera name from id
   const getCameraName = useCallback((camera_id?: string) => {
     if (!camera_id) return undefined;
@@ -167,13 +171,90 @@ export default function PageLayout({ children }: PageLayoutProps) {
 
   const dismiss = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
+  // close on outside click
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!bellRef.current) return;
+      if (!(e.target instanceof Node)) return;
+      if (!bellRef.current.contains(e.target)) {
+        setShowBellPanel(false);
+      }
+    }
+    if (showBellPanel) document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [showBellPanel]);
+
   return (
     <div id="pageLayout" className="flex h-screen bg-background-dark text-light font-display border-none">
       {/* Sidebar */}
       <aside id="sidebar" className="hidden sm:flex flex-col w-80 bg-background-dark/50 transition-all duration-300">
         <div className="flex items-center justify-between h-16 border-b border-gray-700/20 px-4">
-          <h1 className="text-3xl font-bold text-light">VigilHawk</h1>
-          {/* Show username here if user loaded */}
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-light">VigilHawk</h1>
+
+            {/* Bell icon with badge */}
+            <div className="relative" ref={bellRef}>
+              <button
+                onClick={() => setShowBellPanel(v => !v)}
+                className="ml-3 flex items-center justify-center p-2 rounded-full hover:bg-primary/20 text-secondary"
+                title="Notifications"
+                aria-label="Notifications"
+              >
+                <span className="material-symbols-outlined text-2xl">notifications</span>
+                {toasts.length > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold rounded-full bg-red-600 text-white">
+                    {toasts.length > 99 ? "99+" : toasts.length}
+                  </span>
+                )}
+              </button>
+
+              {/* dropdown panel */}
+              {showBellPanel && (
+                <div className="absolute left-1/2 -translate-x-1/2 mt-3 w-[420px] max-w-[90vw] bg-gradient-to-b from-[#071024] to-[#07182b] text-white rounded-xl shadow-2xl p-3 border border-white/6 z-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm font-semibold">Recent notifications</div>
+                    <div className="text-xs text-white/60">Showing last {Math.min(50, toasts.length)}</div>
+                  </div>
+
+                  <div className="max-h-80 overflow-auto">
+                    {toasts.slice(0, 50).map((n) => (
+                      <div key={n.id} className="flex items-start gap-3 p-2 rounded hover:bg-white/3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-400 mt-1" />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-medium">{n.camera_name ?? n.camera_id ?? "Camera"}</div>
+                            <div className="text-xs text-white/60">{new Date(n.timestamp).toLocaleString()}</div>
+                          </div>
+                          <div className="text-xs text-white/80">
+                            {n.detections && n.detections.length > 0
+                              ? `${n.detections.length} detections — ${n.detections.slice(0,2).map((d:any)=>d.class_name ?? d.label ?? 'obj').join(', ')}`
+                              : 'No details'}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setToasts(prev => prev.filter(t => t.id !== n.id))}
+                          className="text-white/60 hover:text-white text-sm"
+                          aria-label="Remove"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {toasts.length === 0 && (
+                      <div className="text-xs text-white/60 p-2">No notifications</div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button onClick={() => { setToasts([]); setShowBellPanel(false); }} className="text-xs px-3 py-1 rounded bg-white/6 hover:bg-white/8">Clear</button>
+                    <button onClick={() => setShowBellPanel(false)} className="text-xs px-3 py-1 rounded bg-blue-900/70 hover:bg-blue-900/90 text-white">Close</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* username & enable sounds button */}
           <div className="flex items-center gap-3">
             {username && (
               <span className="text-sm italic text-secondary">
