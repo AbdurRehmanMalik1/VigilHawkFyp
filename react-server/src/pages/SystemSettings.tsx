@@ -13,6 +13,7 @@ import {
 import { useAppDispatch, useAppSelector } from "../feature/store/reduxHooks";
 import { setCameras, setGeneratedCameras, removeStoppedGeneratedCamera } from "../feature/store/slices/cameraSlice";
 import { useMutation } from "@tanstack/react-query";
+import SoundToggle from "../components/SoundToggle";
 
 export default function SystemSettings() {
   // Settings state matching your UserSettings model
@@ -205,6 +206,7 @@ export default function SystemSettings() {
               Notification Settings
             </h3>
             <div className="space-y-4">
+              <SoundToggle/>
               <div className="flex items-center justify-between p-4 rounded-lg  dark:bg-background-dark/50">
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white">

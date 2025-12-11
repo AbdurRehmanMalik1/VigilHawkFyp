@@ -7,6 +7,7 @@ import { loginUserAPI, type Token } from '../feature/api/auth';
 import { setUser } from '../feature/store/slices/authSlice';
 import { useAppDispatch } from '../feature/store/reduxHooks';
 import { fetchCurrentUserAPI } from '../feature/api/user';
+import { setSoundsEnabled } from '../feature/store/slices/dashboardSettings';
 
 export default function Login() {
   const [username, setUsername] = useState('testuser@gmail.com');
@@ -23,6 +24,25 @@ export default function Login() {
         const userData = await fetchCurrentUserAPI();
         // 3. Dispatch user data to redux store
         dispatch(setUser(userData));
+        const storedSettings = localStorage.getItem(`${userData?.id}:dashboard_settings`);
+        let soundsEnabled = true;  // default true if no stored settings
+
+        if (storedSettings) {
+          try {
+            const parsed = JSON.parse(storedSettings);
+            if (typeof parsed.sound_enabled === 'boolean') {
+              soundsEnabled = parsed.sound_enabled;
+            }
+          } catch {
+          }
+        } else {
+          localStorage.setItem(
+            `${userData?.id}:dashboard_settings`,
+            JSON.stringify({ sound_enabled: true })
+          );
+        }
+
+        dispatch(setSoundsEnabled(soundsEnabled));
         navigate('/');
       } catch (error: any) {
         alert(error.message || 'Failed to fetch user data');

@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { fetchCurrentUserAPI } from "../feature/api/user";
 import { useAppDispatch, useAppSelector } from "../feature/store/reduxHooks";
 import { clearUser, setUser as setUserRedux } from "../feature/store/slices/authSlice";
-import socket from "../utils/socket";
 import NotificationToast from "../components/NotificationToast";
 import type { NotifItem } from "../components/NotificationToast";
+import { useNotificationHandler } from "../hooks/useNotificationHandler";
 
 type PageLayoutProps = {
   children: JSX.Element;
@@ -14,10 +14,12 @@ type PageLayoutProps = {
 
 export default function PageLayout({ children }: PageLayoutProps) {
   const { username, isLoggedIn } = useAppSelector(state => state.user);
-  const userState = useAppSelector(state => state.user); // contains settings/userSettings
+  const userSettings  = useAppSelector(state => state.user?.userSettings!); // contains settings/userSettings
   const cameraList = useAppSelector(state => state.camera.cameras ?? []);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const soundsEnabled = useAppSelector(state => state.dashboardSettings.soundsEnabled);
+
 
   // notifications state
   const [toasts, setToasts] = useState<NotifItem[]>([]);
@@ -89,7 +91,7 @@ export default function PageLayout({ children }: PageLayoutProps) {
       playSingle(1200, 0.12, 0.14);
       // second short beep after small gap
       setTimeout(() => {
-        try { playSingle(950, 0.12, 0.12); } catch {}
+        try { playSingle(950, 0.12, 0.12); } catch { }
       }, 150);
     } catch (e) {
       // no-op
@@ -97,23 +99,23 @@ export default function PageLayout({ children }: PageLayoutProps) {
   }, []);
 
   // optional: visible "Enable sounds" button in header to manually enable
-  const enableSound = async () => {
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      await audioCtxRef.current.resume();
-      audioUnlockedRef.current = true;
-      // play a test beep
-      playBeep();
-    } catch {}
-  };
+  // const enableSound = async () => {
+  //   try {
+  //     if (!audioCtxRef.current) {
+  //       audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+  //     }
+  //     await audioCtxRef.current.resume();
+  //     audioUnlockedRef.current = true;
+  //     // play a test beep
+  //     playBeep();
+  //   } catch { }
+  // };
 
   useEffect(() => {
     async function fetchUser() {
       try {
         const safeUser = await fetchCurrentUserAPI();
-        if(!isLoggedIn) dispatch(setUserRedux(safeUser));
+        if (!isLoggedIn) dispatch(setUserRedux(safeUser));
       } catch (error) {
         navigate("/login", { replace: true });
       }
@@ -128,13 +130,45 @@ export default function PageLayout({ children }: PageLayoutProps) {
   };
 
   // socket listener for global notifications
-  useEffect(() => {
-    // check user setting (supports userSettings shape; fall back to true)
-    const enabled = (userState as any)?.userSettings?.dashboard_alerts ?? true;
-    if (!enabled) return;
+  // useEffect(() => {
+  //   // check user setting (supports userSettings shape; fall back to true)
+  //   const enabled = userSettings?.dashboard_alerts ?? true;
+  //   if (!enabled) return;
 
-    const handler = (incoming: any) => {
-      // support both payload wrapper and direct detection event
+  //   const handler = (incoming: any) => {
+  //     // support both payload wrapper and direct detection event
+  //     const payload = incoming?.payload ?? incoming;
+  //     const camera_id = payload?.camera_id ?? payload?.cameraId ?? payload?.camera;
+  //     const detections = payload?.detections ?? payload?.detectionsList ?? payload?.dets ?? [];
+  //     const timestamp = payload?.timestamp ?? payload?.time ?? new Date().toISOString();
+
+  //     const item: NotifItem = {
+  //       id: `${camera_id ?? "unknown"}_${Date.now()}`,
+  //       camera_id,
+  //       camera_name: getCameraName(camera_id),
+  //       timestamp,
+  //       detections,
+  //       raw: payload,
+  //     };
+
+  //     // insert at top and keep last 50
+  //     setToasts(prev => [item, ...prev].slice(0, 50));
+
+  //     // play sound only if audio was unlocked by user interaction OR user manually enabled
+  //     if (audioUnlockedRef.current) playBeep();
+  //   };
+
+  //   socket.on("notification", handler);
+  //   socket.on("detection", handler);
+
+  //   return () => {
+  //     socket.off("notification", handler);
+  //     socket.off("detection", handler);
+  //   };
+  // }, [userSettings, cameraList, getCameraName, playBeep]);
+  useNotificationHandler(
+    (incoming) => {
+      // your original handler logic here
       const payload = incoming?.payload ?? incoming;
       const camera_id = payload?.camera_id ?? payload?.cameraId ?? payload?.camera;
       const detections = payload?.detections ?? payload?.detectionsList ?? payload?.dets ?? [];
@@ -149,21 +183,13 @@ export default function PageLayout({ children }: PageLayoutProps) {
         raw: payload,
       };
 
-      // insert at top and keep last 50
-      setToasts(prev => [item, ...prev].slice(0, 50));
+      setToasts((prev) => [item, ...prev].slice(0, 50));
 
-      // play sound only if audio was unlocked by user interaction OR user manually enabled
-      if (audioUnlockedRef.current) playBeep();
-    };
-
-    socket.on("notification", handler);
-    socket.on("detection", handler);
-
-    return () => {
-      socket.off("notification", handler);
-      socket.off("detection", handler);
-    };
-  }, [userState, cameraList, getCameraName, playBeep]);
+      if (audioUnlockedRef.current && soundsEnabled) playBeep();
+    },
+    [userSettings, getCameraName, playBeep, setToasts, audioUnlockedRef],
+    userSettings?.dashboard_alerts ?? true
+  );
 
   const dismiss = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
@@ -180,13 +206,13 @@ export default function PageLayout({ children }: PageLayoutProps) {
                 {username}
               </span>
             )}
-            <button
+            {/* <button
               onClick={enableSound}
               className="text-xs px-2 py-1 rounded bg-blue-800/60 hover:bg-blue-800/80 text-white"
               title="Enable notification sounds"
             >
               Enable Sounds
-            </button>
+            </button> */}
           </div>
         </div>
 

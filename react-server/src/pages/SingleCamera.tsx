@@ -9,8 +9,8 @@ import {
 } from "../feature/api/camera";
 import { useMutation } from "@tanstack/react-query";
 import { addStoppedGeneratedCamera, removeStoppedGeneratedCamera, setCameras, setGeneratedCameras } from "../feature/store/slices/cameraSlice";
-import socket from "../utils/socket";
 import HlsVideoPlayer from "../components/HlsVideoPlayer";
+import { useNotificationHandler } from "../hooks/useNotificationHandler";
 
 
 
@@ -200,22 +200,30 @@ export default function SingleCamera() {
 
 
 
-  useEffect(() => {
-    if (!camera_id) return;
+  // useEffect(() => {
+  //   if (!camera_id) return;
 
-    const handler = (data: NotificationItem) => {
-      pushRawNotification(data);       // full raw data
-      pushTableNotification(data);     // optimized UI version
-    };
+  //   const handler = (data: NotificationItem) => {
+  //     pushRawNotification(data);       // full raw data
+  //     pushTableNotification(data);     // optimized UI version
+  //   };
 
-    socket.on("notification", handler);
-    socket.on("detection", handler);
+  //   socket.on("notification", handler);
+  //   socket.on("detection", handler);
 
-    return () => {
-      socket.off("notification", handler);
-      socket.off("detection", handler);
-    };
-  }, [camera_id, pushRawNotification, pushTableNotification]);
+  //   return () => {
+  //     socket.off("notification", handler);
+  //     socket.off("detection", handler);
+  //   };
+  // }, [camera_id, pushRawNotification, pushTableNotification]);
+  useNotificationHandler(
+    (data: NotificationItem) => {
+      pushRawNotification(data);
+      pushTableNotification(data);
+    },
+    [pushRawNotification, pushTableNotification],
+    Boolean(camera_id)  // enabled only if camera_id exists
+  );
 
   if (isPending) {
     return (
