@@ -7,13 +7,12 @@ import {
 } from "../feature/api/user"; // your API fetch fn
 import {
   deleteSingleCameraAPI,
-  getRegisteredCamerasAPI,
   registerCameraAPI,
   updateCameraAPI,
   type CameraOut,
 } from "../feature/api/camera";
 import { useAppDispatch, useAppSelector } from "../feature/store/reduxHooks";
-import { setCameras, setGeneratedCameras, removeStoppedGeneratedCamera } from "../feature/store/slices/cameraSlice";
+import { setCameras } from "../feature/store/slices/cameraSlice";
 import { useMutation } from "@tanstack/react-query";
 import SoundToggle from "../components/SoundToggle";
 import { updateSystemSettings } from "../feature/store/slices/authSlice";
@@ -33,7 +32,7 @@ export default function SystemSettings() {
   // Camera management state
   const [showModal, setShowModal] = useState(false);
   const dispatch = useAppDispatch();
-  const { cameras, generatedCameras } = useAppSelector((state) => state.camera);
+  const { cameras } = useAppSelector((state) => state.camera);
 
 
   const { mutate: mutateChangeSettings } = useMutation({
@@ -56,20 +55,13 @@ export default function SystemSettings() {
   const [loading, setLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  const { mutate: mutateFetchCameras } = useMutation({
-    mutationFn: getRegisteredCamerasAPI,
-    onSuccess: (data) => {
-      dispatch(setCameras([...data]))
-
-    }
-  })
-
   // Fetch current user and load settings on mount
   useEffect(() => {
     async function loadUser() {
       try {
         setLoadingUser(true);
         const user: SafeUser = await fetchCurrentUserAPI();
+        
         if (user?.settings) {
           setSettings(user.settings);
         }
@@ -124,7 +116,6 @@ export default function SystemSettings() {
       setShowModal(false);
       setEditingCamera(null);
       setForm({ name: "", location: "", url: "" });
-      mutateFetchCameras()
     } catch (err: any) {
       setCameraError(err.message);
     } finally {
@@ -152,8 +143,6 @@ export default function SystemSettings() {
     try {
       await deleteSingleCameraAPI(camera.id);
       dispatch(setCameras(cameras.filter(cam => cam.id !== camera.id)));
-      dispatch(setGeneratedCameras(generatedCameras.filter(cam => cam.id !== camera.id)));
-      dispatch(removeStoppedGeneratedCamera(camera.id));
     } catch (error: any) {
       alert(`Failed to delete camera: ${error}`);
     }

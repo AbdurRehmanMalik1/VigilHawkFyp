@@ -104,7 +104,7 @@ def generate_frames_for_hls(camera_url: str, width: int, height: int, cap, camer
     cap.release()
 
 
-def generate_frames_rtsp(camera_url: str, width: int, height: int, cap: cv2.VideoCapture | None, camera_id: str):
+async def generate_frames_rtsp(camera_url: str, width: int, height: int, cap: cv2.VideoCapture | None, camera_id: str):
     if model is None:
         raise RuntimeError("Model not loaded")
 
@@ -130,7 +130,7 @@ def generate_frames_rtsp(camera_url: str, width: int, height: int, cap: cv2.Vide
 
         frame_id += 1
 
-        if frame_id % 2 == 0:  # run YOLO every 2 frames
+        if frame_id % 50 == 0:  # run YOLO every 2 frames
             results = model(frame, verbose=False)
             detections = results[0].boxes
 
@@ -175,6 +175,7 @@ def generate_frames_rtsp(camera_url: str, width: int, height: int, cap: cv2.Vide
 
         # Yield raw BGR24 bytes (no JPEG encoding)
         yield frame.tobytes()
+        await asyncio.sleep(0)
 
     cap.release()
 

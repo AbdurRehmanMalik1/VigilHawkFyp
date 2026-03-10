@@ -11,6 +11,18 @@ export interface CameraOut {
   status: string
 }
 
+export interface CameraConfiguration {
+  camera_id: string;
+  ai_detection: boolean;
+  persons_allowed: number;
+  alert_priority: "High" | "Medium" | "Low";
+  dashboard_alerts: boolean;
+  email_alerts: boolean;
+  allowed_time_range_from?: string; // "HH:MM" or null
+  allowed_time_range_to?: string;   // "HH:MM" or null
+}
+
+
 export async function getRegisteredCamerasAPI(): Promise<CameraOut[]> {
   try {
     const response = await api.get<CameraOut[]>("camera/");
@@ -42,8 +54,15 @@ export async function registerCameraAPI(
   }
 }
 
-
-
+export async function getCameraByIdAPI(cameraId: string): Promise<CameraOut> {
+  try {
+    const response = await api.get<CameraOut>(`camera/${cameraId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch camera:", error);
+    throw error?.response?.data?.detail || error.message || "Failed to fetch camera";
+  }
+}
 
 export async function updateCameraAPI(id: string, data: Partial<Omit<CameraOut, "id" | "created_at" | "registered_by">>): Promise<CameraOut> {
   try {
@@ -70,6 +89,16 @@ export async function startCameraAPI(cameraId: string): Promise<StartCameraRespo
   } catch (error: any) {
     console.error("Failed to start camera:", error);
     throw error?.response?.data?.detail || error.message || "Failed to start camera";
+  }
+}
+
+export async function startCameraDirectAPI(cameraId: string): Promise<StartCameraResponse> {
+  try {
+    const response = await api.post<StartCameraResponse>(`camera/start_direct/${cameraId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to start DIRECT camera:", error);
+    throw error?.response?.data?.detail || error.message || "Failed to start DIRECT camera";
   }
 }
 
@@ -102,5 +131,31 @@ export async function deleteAllCamerasAPI(): Promise<{ status: string; deleted_c
   } catch (error: any) {
     console.error("Failed to delete all cameras:", error);
     throw error?.response?.data?.detail || error.message || "Failed to delete all cameras";
+  }
+}
+
+
+
+export async function getCameraConfigurationAPI(cameraId: string): Promise<CameraConfiguration> {
+  try {
+    const response = await api.get<CameraConfiguration>(`camera/config/${cameraId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch camera configuration:", error);
+    throw error;
+  }
+}
+
+// Update camera configuration
+export async function updateCameraConfigurationAPI(
+  cameraId: string,
+  data: Partial<Omit<CameraConfiguration, "camera_id">>
+): Promise<CameraConfiguration> {
+  try {
+    const response = await api.patch<CameraConfiguration>(`camera/config/${cameraId}`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Failed to update camera configuration:", error);
+    throw error;
   }
 }

@@ -2,7 +2,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.video.controller import router as rtsp_router
+from app.video.rtsp_controller import router as rtsp_router
 from app.video.hls_controller import router as hls_router
 from app.video.mpeg_controller import router as mpeg_router
 

@@ -1,17 +1,18 @@
 import { useParams } from "react-router";
 import { useCallback, useEffect, useState } from "react";
-import { useAppSelector, useAppDispatch } from "../feature/store/reduxHooks";
+import { useAppDispatch, useAppSelector } from "../feature/store/reduxHooks";
 import {
-  getRegisteredCamerasAPI,
   type CameraOut,
   startCameraAPI,
   stopCameraAPI,
+  type StartCameraResponse,
 } from "../feature/api/camera";
 import { useMutation } from "@tanstack/react-query";
-import { addStoppedGeneratedCamera, removeStoppedGeneratedCamera, setCameras, setGeneratedCameras } from "../feature/store/slices/cameraSlice";
 import HlsVideoPlayer from "../components/HlsVideoPlayer";
 import { useNotificationHandler } from "../hooks/useNotificationHandler";
-
+import React from "react";
+import { CameraStatusEnum } from "../enum/CameraStatus";
+import { updateCameraStatus } from "../feature/store/slices/cameraSlice";
 
 
 export interface Detection {
@@ -45,7 +46,7 @@ export default function SingleCamera() {
   const { camera_id } = useParams<{ camera_id: string }>();
   const dispatch = useAppDispatch();
 
-  const { generatedCameras, stoppedGeneratedCameras, cameras } = useAppSelector((state) => state.camera);
+  const { cameras } = useAppSelector((state) => state.camera);
   const [camera, setCamera] = useState<CameraOut | null>(null);
   const [, setNotifications] = useState<NotificationItem[]>([]); // raw
   const [tableNotifications, setTableNotifications] = useState<TableNotification[]>([]); // cleaned
@@ -55,32 +56,16 @@ export default function SingleCamera() {
     timestamps: [] as string[],
   });
 
-  // Fetch registered cameras mutation
-  const { isPending } = useMutation({
-    mutationFn: getRegisteredCamerasAPI,
-    onSuccess: (data) => {
-      dispatch(setCameras(data));
-      const found = data.find((c) => c.id === camera_id) ?? null;
-      setCamera(found);
-    },
-  });
-
   // Start camera mutation
   const { mutateAsync: startCamera, isPending: isStarting } = useMutation({
     mutationFn: startCameraAPI,
-    onSuccess: (data) => {
-      // Update camera URL on start if needed
-      setCamera((prev) => (prev ? { ...prev, url: data.camera_url } : prev));
-      dispatch(removeStoppedGeneratedCamera(data.camera_id))
-      const cam = cameras.find(c => c.id === data.camera_id) as CameraOut;
-      const newGenCam = {
-        ...cam,
-        url: data.camera_url,
-      };
-      // const filteredCameras = generatedCameras.filter(c => c.id !== newGenCam.id);
-      // dispatch(setGeneratedCameras([...filteredCameras, newGenCam]))
-      dispatch(setGeneratedCameras([...generatedCameras, newGenCam]))
-      toggleShowStream(true)
+    onSuccess: (data: StartCameraResponse) => {
+      const temp: CameraOut | undefined = cameras.find(c => c.id == camera_id!)
+      if (temp) {
+        setCamera({ ...temp, url: data.camera_url, status: data.status });
+        dispatch(updateCameraStatus({cameraId: temp.id , status: data.status}))
+        toggleShowStream(true);
+      }
     },
     onError: (error) => {
       alert(`Failed to start camera: ${error}`);
@@ -91,7 +76,10 @@ export default function SingleCamera() {
   const { mutateAsync: stopCamera, isPending: isStopping } = useMutation({
     mutationFn: stopCameraAPI,
     onSuccess: (res) => {
-      dispatch(addStoppedGeneratedCamera(res.camera_id))
+      //dispatch(addStoppedGeneratedCamera(res.camera_id))
+      dispatch(updateCameraStatus({ cameraId: res.camera_id, status: res.status }))
+      if (camera)
+        setCamera({...camera , status: res.status})
       toggleShowStream(false);
     },
     onError: (error) => {
@@ -102,17 +90,13 @@ export default function SingleCamera() {
   const [showStream, toggleShowStream] = useState<boolean>(true)
 
   useEffect(() => {
-    if (stoppedGeneratedCameras.find(id => id === camera_id))
-      toggleShowStream(false);
-    else
-      toggleShowStream(true)
-
-    const foundCamera = generatedCameras.find((c) => c.id === camera_id) ?? null;
-    if (!foundCamera) {
-      console.log("Camera not found");
+    const temp: CameraOut | undefined = cameras.find(c => c.id == camera_id!)
+    if (temp) {
+      setCamera(temp)
+      if (temp.status !== CameraStatusEnum.Offline)
+        startCamera(camera_id!)
     }
-    setCamera(foundCamera);
-  }, [camera_id, generatedCameras]);
+  }, [camera_id]);
 
   function summarizeDetections(detections: any[]) {
     if (!detections || detections.length === 0) return "—";
@@ -198,24 +182,6 @@ export default function SingleCamera() {
 
   }, [camera_id, tableNotifications]);
 
-
-
-  // useEffect(() => {
-  //   if (!camera_id) return;
-
-  //   const handler = (data: NotificationItem) => {
-  //     pushRawNotification(data);       // full raw data
-  //     pushTableNotification(data);     // optimized UI version
-  //   };
-
-  //   socket.on("notification", handler);
-  //   socket.on("detection", handler);
-
-  //   return () => {
-  //     socket.off("notification", handler);
-  //     socket.off("detection", handler);
-  //   };
-  // }, [camera_id, pushRawNotification, pushTableNotification]);
   useNotificationHandler(
     (data: NotificationItem) => {
       pushRawNotification(data);
@@ -225,59 +191,45 @@ export default function SingleCamera() {
     Boolean(camera_id)  // enabled only if camera_id exists
   );
 
-  if (isPending) {
+  const MemoImg = React.memo(function MemoImg(props: any) {
     return (
-      <main className="flex-1 flex items-center justify-center">
-        <p>Loading camera details...</p>
-      </main>
+      <img
+        {...props}
+        className="w-full h-full object-cover"
+      />
     );
-  }
-
-
-  // if (error) {
-  //   return (
-  //     <main className="flex-1 flex items-center justify-center text-red-600">
-  //       <p>Failed to load camera details.</p>
-  //     </main>
-  //   );
-  // }
+  });
 
   const { location } = camera || {};
 
   function CameraStream({ showStream, camera }: { showStream: boolean, camera: CameraOut | null }) {
-    if (showStream && !camera) {
+    if (!camera) {
       return (
         <div className="flex-1 flex items-center justify-center">
           <p>Camera not found</p>
         </div>
       );
     }
-    if (!showStream && camera) {
-      // Empty image placeholder when stream is off but camera exists
+    if (camera.status == CameraStatusEnum.Offline) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-red-500 font-semibold">Camera detection is offline</p>
+        </div>
+      );
+    }
+    if (!showStream) {
       return (
         <img
           alt="No Stream"
-          src="" // empty src disables image loading
+          src=""
           className="w-full h-full object-cover"
         />
       );
     }
-    let isRtsp = false;
-    if (camera?.url?.includes('8083'))
-      isRtsp = true;
-    if (showStream && camera) {
-      return (
-        isRtsp ? <HlsVideoPlayer src={camera.url} /> :
-          <img
-            src={camera.url}
-            alt="Live Stream"
-            className="w-full h-full object-cover"
-          />
-      );
-    }
-
-    // fallback: nothing to show
-    return null;
+    const isRtsp = camera.url.includes('8083');
+    return isRtsp
+      ? <HlsVideoPlayer src={camera.url as any} />
+      : <MemoImg src={camera.url as any} alt="Live Stream" />;
   }
 
   const handlePrintTable = () => {

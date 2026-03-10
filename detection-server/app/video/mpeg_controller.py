@@ -81,13 +81,14 @@ async def direct_stream(camera_url: str):
 @router.post("/start_camera")
 async def start_camera(camera_id: str, camera_url: str):
     #print('start camera called')
-    if camera_id in running_cameras:
-        raise HTTPException(400, "Camera already running")
 
+    if camera_id in running_cameras:
+        return {"status": "started", "camera_id": camera_id}
+    
     task = asyncio.create_task(camera_task(camera_id, camera_url))
     running_cameras[camera_id] = task
 
-    return {"status": "started", "camera_id": camera_id}
+    return {"status": "Online", "camera_id": camera_id}
 
 
 @router.post("/stop_camera")
@@ -99,4 +100,4 @@ async def stop_camera(camera_id: str):
     task.cancel()
     del running_cameras[camera_id]
 
-    return {"status": "stopped", "camera_id": camera_id}
+    return {"status": "Offline", "camera_id": camera_id}

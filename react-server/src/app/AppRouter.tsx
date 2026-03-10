@@ -10,13 +10,18 @@ import SystemSettings from '../pages/SystemSettings';
 import CameraConfiguration from '../pages/CameraConfiguration';
 import AlertsAndLogs from '../pages/AlertsAndLogs';
 import AuthCheckLayout from '../pageLayout/AuthCheckLayout';
+import CameraConfigurationDetail from '../pages/CameraConfigurationDetail';
 
 const layoutRoutes = [
   { path: "cameras", element: <Cameras /> },
   { path: "cameras/:camera_id", element: <SingleCamera /> },
   { path: "analytics", element: <Analytics /> },
   { path: "system-settings", element: <SystemSettings /> },
+
+  // Camera configuration pages
   { path: "camera-configuration", element: <CameraConfiguration /> },
+  { path: "camera-configuration/:camera_id", element: <CameraConfigurationDetail /> },
+
   { path: "alerts-logs", element: <AlertsAndLogs /> },
 ];
 

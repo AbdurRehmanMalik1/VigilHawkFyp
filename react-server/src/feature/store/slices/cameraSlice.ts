@@ -36,6 +36,14 @@ const cameraSlice = createSlice({
         clearStoppedGeneratedCameras(state) {
             state.stoppedGeneratedCameras = [];
         },
+        updateCameraStatus(
+            state,
+            action: PayloadAction<{ cameraId: string; status: string | "Online" | "Offline" }>
+        ) {
+            const { cameraId, status } = action.payload;
+            const cam = state.cameras.find(c => c.id === cameraId);
+            if (cam) cam.status = status;
+        }
     },
 });
 
@@ -45,6 +53,7 @@ export const {
     addStoppedGeneratedCamera,
     removeStoppedGeneratedCamera,
     clearStoppedGeneratedCameras,
+    updateCameraStatus,
 } = cameraSlice.actions;
 
 export default cameraSlice.reducer;

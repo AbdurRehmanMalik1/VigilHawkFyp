@@ -1,8 +1,8 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 from beanie import Document, PydanticObjectId
 from pydantic import BaseModel, Field, AnyUrl
 from app.global_dto import SafeUser, UserSettings
-from datetime import datetime
+from datetime import datetime, time
 
 
 class User(Document):
@@ -27,6 +27,7 @@ class Camera(Document):
     name: Optional[str]
     location: str = Field(min_length=1)
     url: AnyUrl
+    rtspUrl: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     registered_by: PydanticObjectId
     status: str = Field(min_length=1)
@@ -35,13 +36,18 @@ class Camera(Document):
         name = "cameras"
 
 class CameraConfiguration(Document):
-    ai_detection: bool = Field(default=True)
-    alert_priority: str = Field(min_length=1)
-    dashboard_alerts: bool = Field(default=False)
-    email_alerts: bool = Field(default=False)
-    allowed_time_range_from: datetime
-    allowed_time_range_to: datetime
+    id: Optional[PydanticObjectId] = Field(default_factory=PydanticObjectId, alias="_id")
     camera_id: PydanticObjectId
+    ai_detection: bool = Field(default=True)
+    persons_allowed: int = Field(default=1, ge=0)
+    alert_priority: Literal["High", "Medium", "Low"] = Field(default="Medium")
+    dashboard_alerts: bool = Field(default=True)
+    email_alerts: bool = Field(default=False)
+    allowed_time_range_from: Optional[str] = None
+    allowed_time_range_to: Optional[str] = None
+
+    class Settings:
+        name = "camera_configurations"
 
 
 class Video(Document):
@@ -71,3 +77,6 @@ class Alert(Document):
 
     class Settings:
         name = "alerts"  
+
+
+        

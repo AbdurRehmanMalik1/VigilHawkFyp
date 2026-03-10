@@ -1,63 +1,77 @@
 import { useNavigate } from "react-router";
 import { useAppDispatch, useAppSelector } from "../feature/store/reduxHooks";
 import { useEffect } from "react";
-import { getRegisteredCamerasAPI, startCameraAPI, type CameraOut } from "../feature/api/camera";
+import { getRegisteredCamerasAPI, startCameraAPI, startCameraDirectAPI, type CameraOut } from "../feature/api/camera";
 import { useMutation } from "@tanstack/react-query";
-import { setCameras, setGeneratedCameras } from "../feature/store/slices/cameraSlice";
+import { setCameras } from "../feature/store/slices/cameraSlice";
 import { TailSpin } from "react-loader-spinner";
+import React from "react";
+import { CameraStatusEnum } from "../enum/CameraStatus";
+import HlsVideoPlayer from "../components/HlsVideoPlayer";
 
 export default function Cameras() {
   const navigate = useNavigate();
   const { username } = useAppSelector(state => state.user);
   const dispatch = useAppDispatch();
-  const { cameras, stoppedGeneratedCameras, generatedCameras } = useAppSelector(state => state.camera);
+  const { cameras } = useAppSelector(state => state.camera);
 
-  const { mutate, isPending } = useMutation({
+  const { mutate: getRegisteredCameras, isPending } = useMutation({
     mutationFn: getRegisteredCamerasAPI,
     onSuccess: (data) => {
       dispatch(setCameras([...data]))
     }
   })
-
   useEffect(() => {
-    mutate();
+    const startCameras = async () => {
+      getRegisteredCameras();
+
+      if (cameras.length > 0) {
+        const updatedCameras = await Promise.all(
+          cameras.map(async (cam: CameraOut) => {
+
+            try {
+              const isRtsp = cam.url.toLowerCase().includes("localhost:8083");
+
+              console.log({ isRtsp })
+              if (isRtsp)
+                startCameraDirectAPI(cam.id) // call DIRECT endpoint
+
+              if (cam.status === CameraStatusEnum.Offline) return cam;
+              const res = await startCameraAPI(cam.id);
+              return {
+                ...cam,
+                status: res.status,
+              };
+            } catch (error) {
+              console.error(`Failed to start camera ${cam.id}:`, error);
+              return cam;
+            }
+          })
+        );
+        // Optionally, update your state with updatedCameras here
+        setCameras(updatedCameras);
+      }
+    };
+    startCameras();
   }, []);
-
-  useEffect(() => {
-    if (cameras.length > 0) {
-      Promise.all(
-        cameras.map(async (cam: CameraOut) => {
-          try {
-            if (stoppedGeneratedCameras.find(id => id === cam.id))
-              return null;
-            
-            const tempGen = generatedCameras.find(cam => cam.id === cam.id)
-            if (tempGen)
-              return tempGen;
-
-            const res = await startCameraAPI(cam.id);
-            console.log(`Camera ${cam.id} started:`, res.status);
-
-            // Return new camera object with correct video feed url including camera id
-            return {
-              ...cam,
-              url: res.camera_url,
-            };
-          } catch (error) {
-            console.error(`Failed to start camera ${cam.id}:`, error);
-            // Return original camera if start failed
-            return cam;
-          }
-        })
-      ).then((updatedCams: (CameraOut | null)[] ) => {
-        dispatch(setGeneratedCameras(updatedCams.filter(Boolean) as CameraOut[]));
-      });
-    }
-  }, [cameras]);
   // ==== Navigate Function ====
   const handleCameraClick = (camera_id: string) => {
     navigate(`/cameras/${camera_id}`);
   };
+
+  const MemoImg = React.memo(function MemoImg({ src, alt }: any) {
+    return <img src={src} alt={alt} className="w-full h-full object-cover" />;
+  });
+
+  const VideoResolution = React.memo(({ camera }: { camera: CameraOut }) => {
+    const isRtsp = camera.url.toLowerCase().includes("8083");
+    return isRtsp ? (
+      <HlsVideoPlayer src={camera.url} />
+    ) : (
+      <MemoImg src={camera.url} alt="Live Stream" />
+    );
+  });
+
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -88,7 +102,7 @@ export default function Cameras() {
               {cameras.map((cam) => (
                 <div
                   key={cam.id}
-                  onClick={() => handleCameraClick(cam.id)}
+                  onClick={() => { if (!cam.url.includes('8083')) handleCameraClick(cam.id) }}
                   className="relative group aspect-video bg-gray-900 rounded-lg overflow-hidden shadow-lg cursor-pointer"
                 >
                   {/* <video
@@ -100,11 +114,8 @@ export default function Cameras() {
                     className="w-full h-full object-cover"
                   /> */}
                   {/* <HlsVideoPlayer src={cam.url}/> */}
-                  <img
-                    src={cam.url}  // This should point to your MJPEG proxy endpoint
-                    alt={`Camera ${cam.id}`}
-                    className="w-full h-full object-cover"
-                  />
+                  {/* <MemoImg src={cam.url} alt={`Camera ${cam.id}`} /> */}
+                  <VideoResolution camera={cam} />
                   {/* Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 

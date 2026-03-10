@@ -3,10 +3,9 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 import httpx
-from app.camera.dto import CameraRegister, CameraOut, CameraUpdate
-from app.camera.service import create_camera, get_cameras_for_user, get_single_camera, start_registered_cameras, update_camera, delete_camera, delete_all_cameras_for_user
-from app.utils.camera_util import check_camera_url_reachable
-
+from app.camera.dto import CameraConfigUpdate, CameraRegister, CameraOut, CameraUpdate
+from app.camera.service import create_camera, get_camera_configuration, get_cameras_for_user, get_single_camera, start_camera_backend, start_camera_direct_backend, stop_camera_backend, update_camera, delete_camera, delete_all_cameras_for_user, update_camera_configuration
+from app.models import Camera, CameraConfiguration
 
 router = APIRouter()
 
@@ -18,101 +17,44 @@ REAL_DETECTION_BACKEND_URL = "http://localhost:8001"
 
 @router.post("/start/{camera_id}")
 async def start_camera(camera_id: str, req: Request):
-    #print(camera_id)
-    try:
-        camera = await get_single_camera(req.state.user.id, PydanticObjectId(camera_id))
-        if not camera:
-            raise HTTPException(404, "Camera not found or not authorized")
-    except Exception as e:
-        raise HTTPException(500, f"Failed to retrieve camera: {e}")
+    # Get camera for this user
+    camera = await Camera.find_one({"_id": PydanticObjectId(camera_id), "registered_by": req.state.user.id})
+    if not camera:
+        raise HTTPException(404, "Camera not found or not authorized")
 
-    data = dict()
-    if "rtsp" in camera.url.encoded_string():
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(
-                    f"{DETECTION_BACKEND_URL}/hls_stream/start_camera",
-                    json={"camera_id": camera_id, "camera_url": str(camera.url)}
-                )
-                # if resp.status_code != 200:
-                #     raise HTTPException(502, "Failed to start camera on detection backend")
-                data: dict = resp.json()
-        except HTTPException as e:
-                #print(e)
-                raise HTTPException(500, f"Error from start camera: {e}")
-        except Exception as e:
-                raise HTTPException(500, f"Error while calling detection backend: {e}")
-        return {
-            "camera_url": data['camera_url'],
-            "camera_id": data.get("camera_id"),
-            "status": "started"
-        }
-    else:
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(
-                    f"{DETECTION_BACKEND_URL}/video/start_camera",
-                    params={"camera_id": camera_id, "camera_url": str(camera.url)}
-                )
-                # if resp.status_code != 200:
-                #     raise HTTPException(502, "Failed to start camera on detection backend")
-                data: dict = resp.json()
-        except HTTPException as e:
-            #print(e)
-            raise HTTPException(500, f"Error from start camera: {e}")
-        except Exception as e:
-            raise HTTPException(500, f"Error while calling detection backend: {e}") 
-        return {
-            "status": "started",
-            "camera_id": data.get("camera_id"),
-            "camera_url": f'{REAL_DETECTION_BACKEND_URL}/video/video_feed/{camera_id}'
-        }
+    return await start_camera_backend(camera)
 
+@router.post("/start_direct/{camera_id}")
+async def start_camera_direct(camera_id: str, req: Request):
+    # Get camera for this user
+    camera = await Camera.find_one({"_id": PydanticObjectId(camera_id), "registered_by": req.state.user.id})
+    if not camera:
+        raise HTTPException(404, "Camera not found or not authorized")
+
+    # Call the direct backend service
+    return await start_camera_direct_backend(camera)
 
 @router.post("/stop/{camera_id}")
 async def stop_camera(camera_id: str, req: Request):
-    #print(camera_id)
     try:
         camera = await get_single_camera(req.state.user.id, PydanticObjectId(camera_id))
         if not camera:
             raise HTTPException(404, "Camera not found or not authorized")
-    except Exception as e:
-        raise HTTPException(500, f"Failed to retrieve camera: {e}")
-
-    data = dict()
-    if 'rtsp' not in camera.url.encoded_string():
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(
-                    f"{DETECTION_BACKEND_URL}/video/stop_camera",
-                    params={"camera_id": camera_id}
-                )
-                data: dict = resp.json()
-        except HTTPException as e:
-            #print(e)
-            raise
-        except Exception as e:
-            raise HTTPException(500, f"Error while calling detection backend: {e}")
-    else:
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(
-                    f"{DETECTION_BACKEND_URL}/hls_stream/stop_camera",
-                    params={"camera_id": camera_id}
-                )
-                data: dict = resp.json()
-        except HTTPException as e:
-            #print(e)
-            raise
-        except Exception as e:
-            raise HTTPException(500, f"Error while calling detection backend: {e}")
         
-    return {
+        data = await stop_camera_backend(camera)
+
+        return {
             "status": data.get('status'),
             "camera_id": camera_id,
-    }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Failed to stop camera: {e}")
     
 
+    
 
 @router.get("/video_feed/{camera_id}")
 async def proxy_video_feed(camera_id: str):
@@ -127,6 +69,8 @@ async def proxy_video_feed(camera_id: str):
             )
         except httpx.RequestError as e:
             raise HTTPException(502, detail=f"Detection backend not available: {e}")
+
+
 
 @router.get("/{camera_id}", response_model=CameraOut, status_code=200)
 async def get_camera(camera_id: str, req: Request) -> CameraOut:
@@ -145,6 +89,11 @@ async def delete_single_camera(camera_id: str, req: Request):
     camera = await get_single_camera(user_id, PydanticObjectId(camera_id))
     if not camera:
         raise HTTPException(404, "Camera not found or not authorized")
+    try:
+        await stop_camera_backend(camera)
+    except HTTPException as e:
+        if "not running" not in str(e.detail).lower():
+            raise
 
     success = await delete_camera(user_id, PydanticObjectId(camera_id))
     if not success:
@@ -152,11 +101,15 @@ async def delete_single_camera(camera_id: str, req: Request):
 
     return {"status": "deleted", "camera_id": camera_id}
 
+
+
 @router.post("/", response_model=CameraOut, status_code=201)
 async def register_camera(body: CameraRegister, req: Request)->CameraOut:
     #print(req.state.user)
     body.registered_by = req.state.user.id
+    print(body)
     return await create_camera(body)
+
 
 
 
@@ -164,6 +117,67 @@ async def register_camera(body: CameraRegister, req: Request)->CameraOut:
 async def get_registered_cameras(req: Request)->list[CameraOut]:
     user_id = req.state.user.id
     return await get_cameras_for_user(user_id)
+
+
+@router.patch("/config/{camera_id}", response_model=CameraConfiguration)
+async def update_camera_config(camera_id: PydanticObjectId, body: CameraConfigUpdate, req: Request):
+    """
+    Update the configuration of a camera.
+    Only fields provided in the request will be updated.
+    """
+    # Optional: ensure user is authorized
+    if not hasattr(req.state, "user") or not req.state.user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Call service function to update the configuration
+    updated_config = await update_camera_configuration(camera_id, body)
+    return updated_config
+
+@router.get("/config/{camera_id}", response_model=CameraConfiguration)
+async def fetch_camera_config(camera_id: PydanticObjectId, req: Request):
+    """
+    Get the configuration for a specific camera by its ID.
+    """
+    # Optional: check for authenticated user
+    if not hasattr(req.state, "user") or not req.state.user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    return await get_camera_configuration(camera_id)
+
+
+@router.delete("/", status_code=200)
+async def delete_all_cameras(req: Request):
+    user_id = req.state.user.id
+
+    deleted_count = await delete_all_cameras_for_user(user_id)
+
+    return {
+        "status": "all_cameras_deleted",
+        "deleted_count": deleted_count
+    }
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -201,22 +215,3 @@ async def get_registered_cameras(req: Request)->list[CameraOut]:
 #             await asyncio.sleep(0.01)
 
 #     return StreamingResponse(generator(),media_type="multipart/x-mixed-replace; boundary=frame")
-
-
-
-
-
-# ------------------------------------------
-# DELETE ALL CAMERAS FOR THIS USER
-# ------------------------------------------
-@router.delete("/", status_code=200)
-async def delete_all_cameras(req: Request):
-    user_id = req.state.user.id
-
-    deleted_count = await delete_all_cameras_for_user(user_id)
-
-    return {
-        "status": "all_cameras_deleted",
-        "deleted_count": deleted_count
-    }
-    

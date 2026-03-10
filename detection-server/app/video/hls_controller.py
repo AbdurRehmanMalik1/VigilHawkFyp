@@ -15,6 +15,9 @@ ffmpeg_processes: Dict[str, subprocess.Popen] = {}
 HLS_ROOT = Path("/app/videos")  # folder for HLS output
 HLS_ROOT.mkdir(parents=True, exist_ok=True)
 
+HLS_DIRECT_ROOT = Path("/app/videos_direct")  # folder for HLS output
+HLS_DIRECT_ROOT.mkdir(parents=True, exist_ok=True)
+
 async def log_ffmpeg_output(proc: subprocess.Popen, camera_id: str):
     loop = asyncio.get_running_loop()
     while True:
@@ -106,7 +109,7 @@ async def run_ffmpeg_hls(camera_id: str, rtsp_url: str):
 
 
 async def run_ffmpeg_hls_direct(camera_id: str, rtsp_url: str):
-    out_dir = HLS_ROOT / camera_id
+    out_dir = HLS_DIRECT_ROOT / camera_id
 
     if out_dir.exists():
         shutil.rmtree(out_dir)
@@ -164,13 +167,17 @@ async def start_camera(body: CameraStartRequest):
     camera_id = body.camera_id
     camera_url = body.camera_url
 
+    hls_url = f"{NGINX_PUBLIC_SERVER_URL}/videos/{camera_id}/index.m3u8"
+
     if camera_id in running_cameras:
-        raise HTTPException(status_code=400, detail="Camera already running")
+        return {
+        "status": "Online", 
+        "camera_id": camera_id, 
+        "rtsp_out_url": hls_url
+        }
 
     task = asyncio.create_task(run_ffmpeg_hls(camera_id, camera_url))
     running_cameras[camera_id] = task
-
-    hls_url = f"{NGINX_PUBLIC_SERVER_URL}/videos/{camera_id}/index.m3u8"
 
     return {"status": "started", "camera_id": camera_id, "camera_url": hls_url}
 
@@ -179,14 +186,19 @@ async def start_camera(body: CameraStartRequest):
 async def start_camera_direct(body: CameraStartRequest):
     camera_id = body.camera_id
     camera_url = body.camera_url
+    
+    hls_url = f"{NGINX_PUBLIC_SERVER_URL}/videos_direct/{camera_id}/index.m3u8"
 
     if camera_id in running_cameras:
-        raise HTTPException(status_code=400, detail="Camera already running")
+        return {
+        "status": "Online", 
+        "camera_id": camera_id, 
+        "rtsp_out_url": hls_url
+        }
 
     task = asyncio.create_task(run_ffmpeg_hls_direct(camera_id, camera_url))
     running_cameras[camera_id] = task
 
-    hls_url = f"{NGINX_PUBLIC_SERVER_URL}/videos/{camera_id}/index.m3u8"
 
     return {"status": "started_direct", "camera_id": camera_id, "camera_url": hls_url}
 
