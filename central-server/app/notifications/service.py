@@ -1,10 +1,64 @@
-import traceback
 from typing import Any, List, Optional
 from beanie import PydanticObjectId
 from datetime import datetime
-from app.models import Detection, Alert
+from app.models import CameraConfiguration, Detection, Alert
+from fastapi import HTTPException
+from app.camera.service import get_camera_configuration
+import time
 
-# The save function
+camera_config_cache = {}
+
+CACHE_TTL = 120 # 2 Minutes
+
+
+async def get_camera_configuration_cached(camera_id: PydanticObjectId) -> CameraConfiguration:
+    now = time.time()
+
+    cache_entry = camera_config_cache.get(str(camera_id))
+
+    if cache_entry and cache_entry["expiry"] > now:
+        return cache_entry["data"]
+
+    config = await get_camera_configuration(camera_id)
+
+    # store in cache
+    camera_config_cache[str(camera_id)] = {
+        "data": config,
+        "expiry": now + CACHE_TTL
+    }
+
+    return config
+
+def check_violation(config: CameraConfiguration, detections: list) -> dict:
+    violations: list[str] = []
+
+    if not config.ai_detection:
+        return {"violation": False, "reasons": ["AI detection disabled"]}
+
+    person_count = sum(1 for d in detections if d.get("class_name") == "person")
+
+    person_exceeded = False
+
+    if person_count > config.persons_allowed:
+        violations.append(f"Person limit exceeded ({person_count}/{config.persons_allowed})")
+        person_exceeded = True
+
+    if person_exceeded and config.allowed_time_range_from and config.allowed_time_range_to:
+        now = datetime.now().time()
+
+        start = datetime.strptime(config.allowed_time_range_from, "%H:%M:%S").time()
+        end = datetime.strptime(config.allowed_time_range_to, "%H:%M:%S").time()
+
+        if not (start <= now <= end):
+            violations.append("Outside allowed time range")
+
+    return {
+        "violation": len(violations) > 0,
+        "reasons": violations
+    }
+
+
+# 🔥 MAIN FUNCTION
 async def save_detection_alert(
     camera_id: str,
     frame_id: Any,
@@ -12,6 +66,8 @@ async def save_detection_alert(
     timestamp: Optional[str] = None,
     status: str = "new",
 ) -> Alert:
+
+    # ---- TIMESTAMP ----
     try:
         if timestamp:
             try:
@@ -23,6 +79,8 @@ async def save_detection_alert(
     except Exception as e:
         print("❌ Timestamp parse error:", e)
         timestamp_dt = datetime.utcnow()
+
+    # ---- FRAME ID ----
     try:
         frame_id = int(frame_id)
     except:
@@ -31,14 +89,29 @@ async def save_detection_alert(
 
     # ---- DETECTIONS FIX ----
     detections = []
+    raw_detections = []  # 👈 keep raw for rule engine
+
     try:
         for d in detections_data:
-            d["class_id"] = int(d["class_id"])  # FIX STRING
+            raw_detections.append(d)  # keep original
+            d["class_id"] = int(d["class_id"])
             detections.append(Detection(**d))
     except Exception as e:
         print("❌ Detection conversion error:", e)
         raise
-    
+
+    # ---- FETCH CONFIG ----
+    try:
+        config = await get_camera_configuration_cached(PydanticObjectId(camera_id))
+    except Exception as e:
+        print("❌ Config fetch error:", e)
+        raise
+
+    # ---- CHECK VIOLATION ----
+    violation_result = check_violation(config, raw_detections)
+
+    # override status based on violation
+    status = "violation" if violation_result["violation"] else "normal"
 
     # ---- ALERT CREATION ----
     try:
@@ -48,10 +121,12 @@ async def save_detection_alert(
             frame_id=frame_id,
             detections=detections,
             status=status,
+            # optional (if your model supports it)
+            violation_reasons=violation_result["reasons"]
         )
         await alert.insert()
     except Exception as e:
-        print("Failed to save alert")
+        print("❌ Failed to save alert:", e)
         raise
 
     return alert

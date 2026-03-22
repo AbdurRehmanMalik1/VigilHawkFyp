@@ -5,6 +5,8 @@ from typing import Any, Dict, List
 from app.utils.socket_server import sio
 from app.notifications.service import save_detection_alert  # your DB save function (from earlier)
 from app.models import Alert
+from app.camera.service import get_camera_configuration
+
 
 # import your user settings service later
 
@@ -30,10 +32,7 @@ async def send_notification(msg: Notification):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save alert: {e}")
 
-    # 2. Fetch user notification settings (placeholder, implement later)
-    # user_settings = await get_user_notification_settings(user_id)
-    # if not user_settings.allow_detection_notifications:
-    #     return {"status": "saved, but notification not sent due to user settings"}
+    data["violation_reasons"] = alert.violation_reasons
 
     data["timestamp"] = alert.timestamp.isoformat()
 

@@ -6,7 +6,7 @@ services:
       - "8000:8000"           # changed host port to 8050
     depends_on:
       - mongo
-      - rtsp-server
+      # - rtsp-server
     environment:
       MONGO_URI: ${MONGO_URI}
       SECRET_KEY: ${SECRET_KEY}
@@ -35,7 +35,7 @@ services:
       - "8082:80"
     depends_on:
       - fastapi-server
-      - rtsp-server
+      # - rtsp-server
     restart: unless-stopped
 
   mongo:
@@ -47,29 +47,29 @@ services:
     volumes:
       - ./data:/data/db
 
-  rtsp-server:
-    image: bluenviron/mediamtx
-    ports:
-      - "8554:8554"
-    restart: unless-stopped
-    volumes:
-      - ./config/mediamtx.yml:/mediamtx.yml:ro
+  # rtsp-server:
+  #   image: bluenviron/mediamtx
+  #   ports:
+  #     - "8554:8554"
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./config/mediamtx.yml:/mediamtx.yml:ro
 
-  rtsp-to-hls:
-    image: roverr/rtsp-stream:1
-    container_name: rtsp_to_hls
-    restart: unless-stopped
-    ports:
-      - "8554:8554"     # RTSP input
-      - "8889:8889"     # WebRTC player
-      - "8890:8890"     # WebRTC HTTP API
-      - "8189:8189/udp" # ICE/UDP
-    volumes:
-      - ./config/rtsp-stream.yml:/app/rtsp-stream.yml:ro
-      - ./videos:/app/videos
-    environment:
-      - RTSP_STREAM_PORT=8080
-      - RTSP_STREAM_DEBUG=true
+  # rtsp-to-hls:
+  #   image: roverr/rtsp-stream:1
+  #   container_name: rtsp_to_hls
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8554:8554"     # RTSP input
+  #     - "8889:8889"     # WebRTC player
+  #     - "8890:8890"     # WebRTC HTTP API
+  #     - "8189:8189/udp" # ICE/UDP
+  #   volumes:
+  #     - ./config/rtsp-stream.yml:/app/rtsp-stream.yml:ro
+  #     - ./videos:/app/videos
+  #   environment:
+  #     - RTSP_STREAM_PORT=8080
+  #     - RTSP_STREAM_DEBUG=true
 
   nginx:
     image: nginx:alpine

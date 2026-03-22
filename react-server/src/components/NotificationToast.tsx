@@ -5,6 +5,7 @@ export type NotifItem = {
   timestamp: string;
   detections?: any[];
   raw?: any;
+  violation_reasons: any[];
 };
 
 type Props = {

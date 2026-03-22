@@ -102,19 +102,6 @@ export default function PageLayout({ children }: PageLayoutProps) {
     }
   }, []);
 
-  // optional: visible "Enable sounds" button in header to manually enable
-  // const enableSound = async () => {
-  //   try {
-  //     if (!audioCtxRef.current) {
-  //       audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-  //     }
-  //     await audioCtxRef.current.resume();
-  //     audioUnlockedRef.current = true;
-  //     // play a test beep
-  //     playBeep();
-  //   } catch { }
-  // };
-
   useEffect(() => {
     async function fetchUser() {
       try {
@@ -177,6 +164,7 @@ export default function PageLayout({ children }: PageLayoutProps) {
       const camera_id = payload?.camera_id ?? payload?.cameraId ?? payload?.camera;
       const detections = payload?.detections ?? payload?.detectionsList ?? payload?.dets ?? [];
       const timestamp = payload?.timestamp ?? payload?.time ?? new Date().toISOString();
+      const violation_reasons = payload?.violation_reasons ?? [];
 
       const item: NotifItem = {
         id: `${camera_id ?? "unknown"}_${Date.now()}`,
@@ -185,6 +173,7 @@ export default function PageLayout({ children }: PageLayoutProps) {
         timestamp,
         detections,
         raw: payload,
+        violation_reasons
       };
 
       setToasts((prev) => [item, ...prev].slice(0, 50));

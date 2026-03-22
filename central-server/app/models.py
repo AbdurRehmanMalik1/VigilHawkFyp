@@ -73,7 +73,7 @@ class Alert(Document):
     detections: List[Detection]
     #description: str = ""  # optional description field
     status: str = "new"  # e.g., new, acknowledged, resolved
-
+    violation_reasons: Optional[List[str]] = None
 
     class Settings:
         name = "alerts"  

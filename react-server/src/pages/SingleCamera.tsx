@@ -6,6 +6,8 @@ import {
   startCameraAPI,
   stopCameraAPI,
   type StartCameraResponse,
+  getCameraConfigurationAPI,
+  type CameraConfiguration
 } from "../feature/api/camera";
 import { useMutation } from "@tanstack/react-query";
 import HlsVideoPlayer from "../components/HlsVideoPlayer";
@@ -33,6 +35,7 @@ export interface NotificationItem {
   type: string; // e.g., "detection_alert"
   payload?: DetectionPayload;
   timestamp: string; // ISO timestamp
+  violation_reasons: string[];
 }
 
 export interface TableNotification {
@@ -40,6 +43,7 @@ export interface TableNotification {
   event: string;          // type or event name
   description: string;    // optional
   detections: string;     // "person (90%), car (81%)"
+  violation_reasons: string[];
 }
 
 export default function SingleCamera() {
@@ -55,6 +59,7 @@ export default function SingleCamera() {
     hasWeapon: false,
     timestamps: [] as string[],
   });
+  const [cameraConfig, setCameraConfig] = useState<CameraConfiguration>();
 
   // Start camera mutation
   const { mutateAsync: startCamera, isPending: isStarting } = useMutation({
@@ -63,7 +68,7 @@ export default function SingleCamera() {
       const temp: CameraOut | undefined = cameras.find(c => c.id == camera_id!)
       if (temp) {
         setCamera({ ...temp, url: data.camera_url, status: data.status });
-        dispatch(updateCameraStatus({cameraId: temp.id , status: data.status}))
+        dispatch(updateCameraStatus({ cameraId: temp.id, status: data.status }))
         toggleShowStream(true);
       }
     },
@@ -79,11 +84,20 @@ export default function SingleCamera() {
       //dispatch(addStoppedGeneratedCamera(res.camera_id))
       dispatch(updateCameraStatus({ cameraId: res.camera_id, status: res.status }))
       if (camera)
-        setCamera({...camera , status: res.status})
+        setCamera({ ...camera, status: res.status })
       toggleShowStream(false);
     },
     onError: (error) => {
       alert(`Failed to stop camera: ${error}`);
+    },
+  });
+  const { mutate: fetchCameraConfig } = useMutation({
+    mutationFn: (id: string) => getCameraConfigurationAPI(id),
+    onSuccess: (data) => {
+      setCameraConfig(data);
+    },
+    onError: (err: Error) => {
+      console.error("Failed to fetch camera configuration:", err);
     },
   });
 
@@ -93,6 +107,7 @@ export default function SingleCamera() {
     const temp: CameraOut | undefined = cameras.find(c => c.id == camera_id!)
     if (temp) {
       setCamera(temp)
+      fetchCameraConfig(camera_id!);
       if (temp.status !== CameraStatusEnum.Offline)
         startCamera(camera_id!)
     }
@@ -140,6 +155,7 @@ export default function SingleCamera() {
       event: data.type ?? "event",
       description: data.payload?.description ?? summary,
       detections: detectionList || "—",
+      violation_reasons: data?.violation_reasons ?? []
     };
 
     // ---- Update table list (max 100)
@@ -303,7 +319,17 @@ export default function SingleCamera() {
                 {isStopping ? "Stopping..." : "Stop"}
               </button>
             </div>
-
+            <div className="mb-6 p-4 border rounded-md bg-black/5 dark:bg-white/5 text-sm text-black/80 dark:text-white/80">
+              <h3 className="text-md font-semibold mb-2">Camera Rules</h3>
+              <div className="flex justify-between mb-1">
+                <span className="font-medium">Allowed Persons:</span>
+                <span>{cameraConfig?.persons_allowed}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Allowed Time Range:</span>
+                <span>{cameraConfig?.allowed_time_range_from} - {cameraConfig?.allowed_time_range_to}</span>
+              </div>
+            </div>
             <div className="mb-6">
               <h3 className="text-lg font-bold text-black dark:text-white mb-2">
                 Threat Level
@@ -330,26 +356,43 @@ export default function SingleCamera() {
                       <th className="px-4 py-3 font-medium">Event</th>
                       <th className="px-4 py-3 font-medium">Description</th>
                       <th className="px-4 py-3 font-medium">Detections</th>
+                      <th className="px-4 py-3 font-medium w-[35%]">Violations</th> {/* ✅ NEW */}
                     </tr>
                   </thead>
 
                   <tbody className="divide-y divide-black/10 dark:divide-white/10">
                     {tableNotifications.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-4 py-3">
+                        <td colSpan={5} className="px-4 py-3"> {/* ✅ updated colspan */}
                           No Logs yet
                         </td>
                       </tr>
-                    ) : (
-                      tableNotifications.map((n, idx) => (
+                    ) : tableNotifications.map((n, idx) => {
+                      // 🔹 Debug print each notification
+                      //console.log("Notification:", n);
+
+                      return (
                         <tr key={idx}>
                           <td className="px-4 py-3">{n.timestamp}</td>
                           <td className="px-4 py-3">{n.event}</td>
                           <td className="px-4 py-3">{n.description}</td>
                           <td className="px-4 py-3">{n.detections}</td>
+                          <td className="px-4 py-3">
+                            {n.violation_reasons && n.violation_reasons.length > 0 ? (
+                              <ul className="list-disc pl-4 space-y-1">
+                                {n.violation_reasons.map((v, i) => (
+                                  <li key={i} className="text-red-500">
+                                    {v}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span className="text-green-500">No violation</span>
+                            )}
+                          </td>
                         </tr>
-                      ))
-                    )}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
