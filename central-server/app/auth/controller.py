@@ -6,7 +6,7 @@ from app.auth.dto import UserCreate, UserOut, Token
 from app.utils.jwt import create_access_token
 from app.utils.security import get_password_hash
 from app.models import User, UserSettings
-
+from app.logger.service import log_event
 
 router = APIRouter()
 
@@ -18,6 +18,13 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     user: Optional[User] = await authenticate_user(form_data.username, form_data.password)
 
     if not user:
+        await log_event(
+            event_type="User Login",
+            category="User",
+            source="Auth",
+            description=f"Failed login attempt for username: {form_data.username}",
+            status="Failed"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -25,6 +32,15 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     
     access_token = create_access_token(data={"sub": user.email})
+
+    await log_event(
+        event_type="User Login",
+        category="User",
+        source="Auth",
+        description=f"{user.username} logged in",
+        status="Successful",
+        user_id=user.id,
+    )
 
     return Token(access_token=access_token, token_type="bearer")
 

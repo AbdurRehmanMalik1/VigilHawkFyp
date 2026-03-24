@@ -8,10 +8,12 @@ import time
 
 camera_config_cache = {}
 
-CACHE_TTL = 120 # 2 Minutes
+CACHE_TTL = 120  # 2 Minutes
 
 
-async def get_camera_configuration_cached(camera_id: PydanticObjectId) -> CameraConfiguration:
+async def get_camera_configuration_cached(
+    camera_id: PydanticObjectId,
+) -> CameraConfiguration:
     now = time.time()
 
     cache_entry = camera_config_cache.get(str(camera_id))
@@ -22,12 +24,20 @@ async def get_camera_configuration_cached(camera_id: PydanticObjectId) -> Camera
     config = await get_camera_configuration(camera_id)
 
     # store in cache
-    camera_config_cache[str(camera_id)] = {
-        "data": config,
-        "expiry": now + CACHE_TTL
-    }
+    camera_config_cache[str(camera_id)] = {"data": config, "expiry": now + CACHE_TTL}
 
     return config
+
+
+def filter_detections_by_priority(detections: list, priority: str) -> list:
+    """
+    Filters detections based on flipped confidence thresholds:
+    High = 0.30, Medium = 0.50, Low = 0.60
+    """
+    thresholds = {"High": 0.30, "Medium": 0.50, "Low": 0.60}
+    conf_threshold = thresholds.get(priority, thresholds["Medium"])
+    return [d for d in detections if d.get("confidence", 0) >= conf_threshold]
+
 
 def check_violation(config: CameraConfiguration, detections: list) -> dict:
     violations: list[str] = []
@@ -40,10 +50,16 @@ def check_violation(config: CameraConfiguration, detections: list) -> dict:
     person_exceeded = False
 
     if person_count > config.persons_allowed:
-        violations.append(f"Person limit exceeded ({person_count}/{config.persons_allowed})")
+        violations.append(
+            f"Person limit exceeded ({person_count}/{config.persons_allowed})"
+        )
         person_exceeded = True
 
-    if person_exceeded and config.allowed_time_range_from and config.allowed_time_range_to:
+    if (
+        person_exceeded
+        and config.allowed_time_range_from
+        and config.allowed_time_range_to
+    ):
         now = datetime.now().time()
 
         start = datetime.strptime(config.allowed_time_range_from, "%H:%M:%S").time()
@@ -52,10 +68,7 @@ def check_violation(config: CameraConfiguration, detections: list) -> dict:
         if not (start <= now <= end):
             violations.append("Outside allowed time range")
 
-    return {
-        "violation": len(violations) > 0,
-        "reasons": violations
-    }
+    return {"violation": len(violations) > 0, "reasons": violations}
 
 
 # 🔥 MAIN FUNCTION
@@ -107,8 +120,11 @@ async def save_detection_alert(
         print("❌ Config fetch error:", e)
         raise
 
+    priority = config.alert_priority or "Medium"
+    filtered_detections = filter_detections_by_priority(raw_detections, priority)
+
     # ---- CHECK VIOLATION ----
-    violation_result = check_violation(config, raw_detections)
+    violation_result = check_violation(config, filtered_detections)
 
     # override status based on violation
     status = "violation" if violation_result["violation"] else "normal"
@@ -122,9 +138,11 @@ async def save_detection_alert(
             detections=detections,
             status=status,
             # optional (if your model supports it)
-            violation_reasons=violation_result["reasons"]
+            violation_reasons=violation_result["reasons"],
+            priority=config.alert_priority,
         )
-        await alert.insert()
+        if len(violation_result):
+            await alert.insert()
     except Exception as e:
         print("❌ Failed to save alert:", e)
         raise

@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 from beanie import Document, PydanticObjectId
 from pydantic import BaseModel, Field, AnyUrl
 from app.global_dto import SafeUser, UserSettings
@@ -74,9 +74,32 @@ class Alert(Document):
     #description: str = ""  # optional description field
     status: str = "new"  # e.g., new, acknowledged, resolved
     violation_reasons: Optional[List[str]] = None
+    priority: Optional[str] = None
 
     class Settings:
         name = "alerts"  
 
+class Log(Document):
+    id: Optional[PydanticObjectId] = Field(default_factory=PydanticObjectId, alias="_id")
 
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    event_type: str = Field(min_length=1)   # free text for now
+    category: Optional[str] = None
+
+    source: Optional[str] = None
+    description: Optional[str] = None
+
+    status: str = Field(default="Active")
+    severity: Optional[str] = None
+
+    user_id: Optional[PydanticObjectId] = None
+    reference_id: Optional[PydanticObjectId] = None  # Alert, Camera, etc.
+
+    ip_address: Optional[str] = None
+
+    metadata: Optional[Dict[str, Any]] = None  # flexible JSON-like storage
+
+    class Settings:
+        name = "logs"
         

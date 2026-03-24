@@ -47,6 +47,14 @@ services:
     volumes:
       - ./data:/data/db
 
+  # minio:
+  #   image: minio/minio
+  #   ports:
+  #     - "9000:9000"
+  #   volumes:
+  #     - minio_data:/data
+  #   command: server /data
+
   # rtsp-server:
   #   image: bluenviron/mediamtx
   #   ports:

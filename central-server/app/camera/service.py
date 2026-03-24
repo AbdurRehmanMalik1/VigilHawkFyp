@@ -6,7 +6,7 @@ import httpx
 from pydantic import AnyUrl
 from app.models import Camera, CameraConfiguration, User
 from app.camera.dto import CameraConfigCreate, CameraConfigUpdate, CameraRegister, CameraOut, CameraUpdate
-
+from app.logger.service import log_event
 
 DETECTION_BACKEND_URL = "http://detection-server:8001"
 
@@ -59,9 +59,15 @@ async def create_camera(data: CameraRegister) -> CameraOut:
             allowed_time_range_to=None
         )
         await default_config.insert()
-        print("Default config inserted")
     except Exception as e:
-        print("Failed to insert default config:", e)
+        await log_event(
+            event_type="Camera Registration",
+            category="System",
+            source=f"Camera {camera.name}",
+            status="Failed",
+            user_id=data.registered_by,
+            reference_id=camera.id,
+        )
         raise
 
     # Build output
@@ -74,7 +80,6 @@ async def create_camera(data: CameraRegister) -> CameraOut:
         registered_by=user.id,
         status="Offline"
     )
-    print("Made camera out")
     return cameraout
     
 
@@ -157,13 +162,13 @@ async def start_camera_backend(camera: Camera) -> dict:
             payload = {"camera_id": str(camera.id), "camera_url": str(camera.url)}
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.post(endpoint, json=payload)
-                data = resp.json()
         else:
             endpoint = f"{DETECTION_BACKEND_URL}/video/start_camera"
             params = {"camera_id": str(camera.id), "camera_url": str(camera.url)}
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.post(endpoint, params=params)
-                data = resp.json()
+        data = resp.json()
+        resp.raise_for_status()
         
         # Update camera status in DB
         camera.status = "Online"
@@ -183,8 +188,26 @@ async def start_camera_backend(camera: Camera) -> dict:
         }
 
     except httpx.HTTPStatusError as e:
+        await log_event(
+            event_type="Camera Stop",
+            category="System",
+            source=f"Camera {camera.name}",
+            description=f"Failed to stop camera: {e.response.text}",
+            status="Failed",
+            user_id=None,  # or current user ID
+            reference_id=camera.id,
+        )
         raise HTTPException(status_code=e.response.status_code, detail=f"Backend error: {e}")
     except Exception as e:
+        await log_event(
+            event_type="Camera Stop",
+            category="System",
+            source=f"Camera {camera.name}",
+            description=f"Error while calling detection backend",
+            status="Failed",
+            user_id=None,
+            reference_id=camera.id,
+        )
         raise HTTPException(status_code=500, detail=f"Error while starting camera: {e}")
 
 async def start_camera_direct_backend(camera:Camera) -> dict:
@@ -242,6 +265,7 @@ async def stop_camera_backend(camera: CameraOut) -> dict:
                 endpoint,
                 params={"camera_id": str(camera.id)}
             )
+            resp.raise_for_status()
             resp_data = resp.json()
             
         camera_doc = await Camera.find_one(Camera.id == camera.id)
@@ -251,8 +275,26 @@ async def stop_camera_backend(camera: CameraOut) -> dict:
         return resp_data
 
     except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=f"Backend error: {e}")
+        await log_event(
+            event_type="Camera Stop",
+            category="System",
+            source=f"Camera {camera.name}",
+            description=f"Failed to stop camera: {e.response.text}",
+            status="Failed",
+            user_id=None,  # or current user ID
+            reference_id=camera.id,
+        )
+        raise HTTPException(status_code=e.response.status_code, detail=f"Backend error: {e.response.text}")
     except Exception as e:
+        await log_event(
+            event_type="Camera Stop",
+            category="System",
+            source=f"Camera {camera.name}",
+            description=f"Error while calling detection backend",
+            status="Failed",
+            user_id=None,
+            reference_id=camera.id,
+        )
         raise HTTPException(status_code=500, detail=f"Error while calling detection backend: {e}")
 
 
