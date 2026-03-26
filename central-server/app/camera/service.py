@@ -157,7 +157,7 @@ async def start_camera_backend(camera: Camera) -> dict:
     data: dict = {}
 
     try:
-        if "rtsp" in camera.url.encoded_string():
+        if "rtsp" in str(camera.url):
             endpoint = f"{DETECTION_BACKEND_URL}/hls_stream/start_camera"
             payload = {"camera_id": str(camera.id), "camera_url": str(camera.url)}
             async with httpx.AsyncClient(timeout=10) as client:
@@ -176,14 +176,14 @@ async def start_camera_backend(camera: Camera) -> dict:
 
         # Construct return URL
         camera_url = (
-            data.get("camera_url")
-            if "rtsp" in camera.url.encoded_string()
+            str(data.get("camera_url"))
+            if "rtsp" in str(camera.url)
             else f"{REAL_DETECTION_BACKEND_URL}/video/video_feed/{camera.id}"
         )
 
         return {
             "camera_id": str(camera.id),
-            "camera_url": camera_url,
+            "camera_url": str(camera_url),
             "status": "Online"
         }
 
@@ -230,7 +230,7 @@ async def start_camera_direct_backend(camera:Camera) -> dict:
             camera.status = "Online"
             await camera.save()
 
-            camera_url = data.get("camera_url")  # URL returned by backend
+            camera_url = str(data.get("camera_url"))  # URL returned by backend
 
             return {
                 "camera_id": str(camera.id),
@@ -255,7 +255,7 @@ async def stop_camera_backend(camera: CameraOut) -> dict:
     """
     try:
         # Determine backend endpoint
-        if 'rtsp' not in camera.url.encoded_string():
+        if 'rtsp' not in str(camera.url):
             endpoint = f"{DETECTION_BACKEND_URL}/video/stop_camera"
         else:
             endpoint = f"{DETECTION_BACKEND_URL}/hls_stream/stop_camera"

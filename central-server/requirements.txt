@@ -1,8 +1,8 @@
 fastapi
 uvicorn
-pymongo
-motor
-beanie
+pymongo==4.15.4
+motor==3.7.1
+beanie==2.0.0
 passlib
 python-jose
 email-validator
@@ -12,3 +12,4 @@ types-orjson
 nats-py
 httpx
 python-socketio[asyncio_server]
+psutil

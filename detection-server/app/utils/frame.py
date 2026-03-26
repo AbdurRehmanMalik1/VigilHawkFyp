@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os
+import time
 import cv2
 import numpy as np
 from app.utils.logging import async_log_detection as log_detection  # async function
@@ -180,7 +181,86 @@ async def generate_frames_rtsp(camera_url: str, width: int, height: int, cap: cv
     cap.release()
 
 
-# http stream
+# # http stream
+# def generate_frames(camera_url: str, camera_id: str, jpeg_quality: int = 50):
+#     if model is None:
+#         raise RuntimeError("Model not loaded")
+
+#     cap = cv2.VideoCapture(camera_url)
+#     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+#     frame_id = 0
+#     encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality]
+
+#     while True:
+#         if not cap.grab():
+#             print("No more frames to grab, breaking")
+#             break
+
+#         success, frame = cap.retrieve()
+#         if not success:
+#             print("Failed to retrieve frame, breaking")
+#             break
+
+#         frame_id += 1
+#         detection_list = []
+
+#         if frame_id % 5 == 0:
+#             results = model(frame, verbose=False)
+#             detections = results[0].boxes
+#             for box in detections:
+#                 cls_id = int(box.cls[0])
+#                 conf = float(box.conf[0])
+#                 x1, y1, x2, y2 = map(int, box.xyxy[0])
+#                 class_name = model.names[cls_id]
+
+#                 # if class_name == 'person':
+#                 #     color = (255, 0, 0)
+#                 # elif class_name == 'weapon':
+#                 #     color = (0, 0, 255)
+#                 # else:
+#                 #     color = (0, 255, 0)
+
+#                 # cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+#                 # label = f"{class_name} {conf:.2f}"
+#                 # cv2.putText(frame, label, (x1, y1 - 5),
+#                 #             cv2.FONT_HERSHEY_PLAIN, 5, color, 2)
+
+#                 detection_list.append({
+#                     "class_id": cls_id,
+#                     "class_name": class_name,
+#                     "confidence": conf,
+#                     "bbox": [x1, y1, x2, y2]
+#                 })
+#         # results = model(frame, verbose=False)
+#         # detections = results[0].boxes
+#         # for box in detections:
+#         #     cls_id = int(box.cls[0])
+#         #     conf = float(box.conf[0])
+#         #     x1, y1, x2, y2 = map(int, box.xyxy[0])
+#         #     class_name = model.names[cls_id]
+#         #     detection_list.append({
+#         #         "class_id": cls_id,
+#         #         "class_name": class_name,
+#         #         "confidence": conf,
+#         #         "bbox": [x1, y1, x2, y2]
+#         #     })
+
+#         if detection_list:
+#             log_data = {
+#                 "type": "detection",
+#                 "timestamp": makeTimeStamp(),
+#                 "payload": {
+#                     "frame_id": frame_id,
+#                     "camera_id": camera_id,
+#                     "detections": detection_list,
+#                 }
+#             }
+#             asyncio.create_task(log_detection(log_data))
+
+#         ret, jpeg_buffer = cv2.imencode('.jpg', frame, encode_param)
+#         yield jpeg_buffer.tobytes()
+
 def generate_frames(camera_url: str, camera_id: str, jpeg_quality: int = 50):
     if model is None:
         raise RuntimeError("Model not loaded")
@@ -190,6 +270,12 @@ def generate_frames(camera_url: str, camera_id: str, jpeg_quality: int = 50):
 
     frame_id = 0
     encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality]
+
+    prev_time = time.time()  # for FPS calculation
+    last_detection_time = 0
+
+    MIN_DETECT_FPS = 2  # min detection frequency per second
+    MAX_DETECT_FPS = 5  # max detection frequency per second
 
     while True:
         if not cap.grab():
@@ -202,9 +288,27 @@ def generate_frames(camera_url: str, camera_id: str, jpeg_quality: int = 50):
             break
 
         frame_id += 1
+
+        # --- Incoming FPS calculation ---
+        current_time = time.time()
+        dt = current_time - prev_time
+        fps = 1.0 / dt if dt > 0 else 0
+        prev_time = current_time
+        #print(f"Camera {camera_id} - Frame {frame_id} - Incoming FPS: {fps:.2f}")
+
+        # --- Dynamic detection interval ---
+        if fps > 0:
+            # we want to detect roughly between MIN_DETECT_FPS and MAX_DETECT_FPS
+            detect_fps = max(min(fps, MAX_DETECT_FPS), MIN_DETECT_FPS)
+            detect_interval = 1.0 / detect_fps
+        else:
+            detect_interval = 0.5  # fallback if FPS unknown
+
         detection_list = []
 
-        if frame_id % 5 == 0:
+        # --- Run detection if enough time has passed ---
+        if current_time - last_detection_time >= detect_interval:
+            last_detection_time = current_time
             results = model(frame, verbose=False)
             detections = results[0].boxes
             for box in detections:
@@ -225,26 +329,15 @@ def generate_frames(camera_url: str, camera_id: str, jpeg_quality: int = 50):
                 # cv2.putText(frame, label, (x1, y1 - 5),
                 #             cv2.FONT_HERSHEY_PLAIN, 5, color, 2)
 
+
                 detection_list.append({
                     "class_id": cls_id,
                     "class_name": class_name,
                     "confidence": conf,
                     "bbox": [x1, y1, x2, y2]
                 })
-        # results = model(frame, verbose=False)
-        # detections = results[0].boxes
-        # for box in detections:
-        #     cls_id = int(box.cls[0])
-        #     conf = float(box.conf[0])
-        #     x1, y1, x2, y2 = map(int, box.xyxy[0])
-        #     class_name = model.names[cls_id]
-        #     detection_list.append({
-        #         "class_id": cls_id,
-        #         "class_name": class_name,
-        #         "confidence": conf,
-        #         "bbox": [x1, y1, x2, y2]
-        #     })
 
+        # --- Log detections asynchronously ---
         if detection_list:
             log_data = {
                 "type": "detection",
@@ -257,5 +350,6 @@ def generate_frames(camera_url: str, camera_id: str, jpeg_quality: int = 50):
             }
             asyncio.create_task(log_detection(log_data))
 
+        # --- Encode JPEG to stream ---
         ret, jpeg_buffer = cv2.imencode('.jpg', frame, encode_param)
         yield jpeg_buffer.tobytes()

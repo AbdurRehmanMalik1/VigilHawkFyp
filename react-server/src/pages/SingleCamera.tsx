@@ -49,6 +49,7 @@ export interface TableNotification {
 export default function SingleCamera() {
   const { camera_id } = useParams<{ camera_id: string }>();
   const dispatch = useAppDispatch();
+  const [latestThreat, setLatestThreat] = useState<number>(0.0);
 
   const { cameras } = useAppSelector((state) => state.camera);
   const [camera, setCamera] = useState<CameraOut | null>(null);
@@ -113,6 +114,14 @@ export default function SingleCamera() {
     }
   }, [camera_id]);
 
+  // const getMaxConfidence = (data: NotificationItem): number => {
+  //   const detections = data?.payload?.detections;
+
+  //   if (!detections || detections.length === 0) return 0.0;
+
+  //   return Math.max(...detections.map(d => d.confidence));
+  // };
+
   function summarizeDetections(detections: any[]) {
     if (!detections || detections.length === 0) return "—";
 
@@ -141,15 +150,24 @@ export default function SingleCamera() {
   const pushTableNotification = useCallback((data: NotificationItem) => {
     if (data?.payload?.camera_id !== camera_id) return;
 
+    // setLatestThreat(getMaxConfidence(data))
+
     const cleanTimestamp = data.timestamp?.split(".")[0] ?? "—";
 
     const detections = data.payload?.detections || [];
     const summary = detections.length ? summarizeDetections(detections) : "—";
 
+    let maxConfidence: number = 0.0;
     const detectionList = detections
-      .map((d: any) => `${d.class_name} (${Math.round(d.confidence * 100)}%)`)
-      .join(", ");
+      .map((d: any) => {
+        if (d.confidence > maxConfidence) {
+          maxConfidence = d.confidence;
+        }
 
+        return `${d.class_name} (${Math.round(d.confidence * 100)}%)`;
+      })
+      .join(", ");
+    setLatestThreat(maxConfidence);
     const cleaned: TableNotification = {
       timestamp: cleanTimestamp,
       event: data.type ?? "event",
@@ -334,15 +352,19 @@ export default function SingleCamera() {
               <h3 className="text-lg font-bold text-black dark:text-white mb-2">
                 Threat Level
               </h3>
+
               <div className="flex items-center justify-between text-sm text-black/80 dark:text-white/80 mb-1">
                 <p className="font-medium">High Threat</p>
-                <p>75%</p>
+                <p>{Math.round(latestThreat * 100)}%</p>
               </div>
+
               <div className="h-2 w-full rounded-full bg-black/20 dark:bg-white/20">
-                <div className="h-full rounded-full bg-red-500" style={{ width: "75%" }} />
+                <div
+                  className="h-full rounded-full bg-red-500"
+                  style={{ width: `${latestThreat * 100}%` }}
+                />
               </div>
             </div>
-
             <div>
               <h3 className="text-lg font-bold text-black dark:text-white mb-4">
                 Camera Logs

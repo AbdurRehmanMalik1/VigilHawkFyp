@@ -5,6 +5,8 @@ from app.auth.controller import router as auth_router
 from app.user.controller import router as user_router
 from app.camera.controller import router as camera_router
 from app.logger.controller import router as log_router
+from app.analytics.controller import router as analytics_router
+
 from app.camera import callback_controller as camera_callback
 from app.middlewares.auth_middleware import auth_middleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +17,8 @@ from app.logger.service import log_event
 async def lifespan(app: FastAPI):
     await init_db()
     yield
-    
+
+
 fastapi_app = FastAPI(lifespan=lifespan)
 
 origins = [
@@ -52,14 +55,17 @@ fastapi_app.middleware("http")(auth_middleware)
 #     response = await call_next(request)
 #     return response
 
+fastapi_app.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
 fastapi_app.include_router(log_router, prefix="/logs", tags=["logs"])
 fastapi_app.include_router(auth_router, prefix="/auth", tags=["auth"])
-fastapi_app.include_router(user_router, prefix="/user" , tags=["user"])
-fastapi_app.include_router(camera_router, prefix="/camera" , tags=["camera"])
+fastapi_app.include_router(user_router, prefix="/user", tags=["user"])
+fastapi_app.include_router(camera_router, prefix="/camera", tags=["camera"])
 fastapi_app.include_router(camera_callback.router)
 
 from app.notifications.controller import router as notifications_router
+
 fastapi_app.include_router(notifications_router)
 
 from app.utils.socket_server import get_asgi_app
+
 app = get_asgi_app(fastapi_app)

@@ -7,7 +7,8 @@ from app.models import User
 PROTECTED_PREFIXES: list[str] = [
     "/user",
     "/camera",
-    "/log"
+    "/log",
+    "/analytics"
 ]
 
 EXEMPT_PATHS: list[str] = [
