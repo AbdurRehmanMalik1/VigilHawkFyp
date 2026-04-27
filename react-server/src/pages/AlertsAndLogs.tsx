@@ -1,7 +1,7 @@
 import LogsTable from "../components/LogsTable";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deleteAlertsAPI, fetchAlertsAPI, type AlertItem, type FetchAlertsParams } from "../feature/api/log";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import CameraImage from '../assets/Camera Image.png';
 import { useNavigate } from "react-router";
 
@@ -13,7 +13,15 @@ const priorityColors: Record<AlertItem["priority"], string> = {
 
 export default function AlertsAndLogs() {
   const [searchInput, setSearchInput] = useState<string>("");
-  const [params, setParams] = useState<FetchAlertsParams>({ limit: 10, skip: 0, searchString: "" });
+  const [params, setParams] = useState<FetchAlertsParams>({
+    limit: 10,
+    skip: 0,
+    searchString: "",
+    priority: undefined,
+    threatType: "neither",
+    fromDate: "",
+    toDate: "",
+  });
 
   const navigate = useNavigate();
 
@@ -51,6 +59,24 @@ export default function AlertsAndLogs() {
     setSearchInput(e.target.value);
   };
 
+  const handlePriorityChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value as "" | "High" | "Medium" | "Low";
+    setParams(prev => ({ ...prev, priority: value || undefined, skip: 0 }));
+  };
+
+  const handleThreatTypeChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value as "weapon" | "person" | "both" | "neither";
+    setParams(prev => ({ ...prev, threatType: value, skip: 0 }));
+  };
+
+  const handleFromDateChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setParams(prev => ({ ...prev, fromDate: e.target.value, skip: 0 }));
+  };
+
+  const handleToDateChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setParams(prev => ({ ...prev, toDate: e.target.value, skip: 0 }));
+  };
+
   return (
     <div className="flex-1 p-8">
       <div className="max-w-7xl mx-auto">
@@ -75,16 +101,41 @@ export default function AlertsAndLogs() {
                 type="text"
               />
             </div>
-            <div className="flex gap-4">
-              <button className="px-4 py-2 rounded-lg bg-black/5 dark:bg-white/5 text-black/80 dark:text-white/80 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/10">
-                Threat Type
-              </button>
-              <button className="px-4 py-2 rounded-lg bg-black/5 dark:bg-white/5 text-black/80 dark:text-white/80 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/10">
-                Date Range
-              </button>
-              <button className="px-4 py-2 rounded-lg bg-black/5 dark:bg-white/5 text-black/80 dark:text-white/80 text-sm font-medium hover:bg-black/10 dark:hover:bg-white/10">
-                Priority Level
-              </button>
+            <div className="flex flex-wrap gap-4">
+              <select
+                onChange={handleThreatTypeChange}
+                value={params.threatType ?? "neither"}
+                className="px-4 py-2 rounded-lg bg-white dark:bg-slate-800 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-primary text-black dark:text-white text-sm"
+              >
+                <option className="bg-white text-black" value="neither">Neither</option>
+                <option className="bg-white text-black" value="weapon">Weapon</option>
+                <option className="bg-white text-black" value="person">Person</option>
+                <option className="bg-white text-black" value="both">Both</option>
+              </select>
+              <input
+                onChange={handleFromDateChange}
+                value={params.fromDate ?? ""}
+                className="px-4 py-2 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-primary text-black/90 dark:text-white/90 text-sm"
+                type="date"
+                title="From date"
+              />
+              <input
+                onChange={handleToDateChange}
+                value={params.toDate ?? ""}
+                className="px-4 py-2 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-primary text-black/90 dark:text-white/90 text-sm"
+                type="date"
+                title="To date"
+              />
+              <select
+                onChange={handlePriorityChange}
+                value={params.priority ?? ""}
+                className="px-4 py-2 rounded-lg bg-white dark:bg-slate-800 border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-primary text-black dark:text-white text-sm"
+              >
+                <option className="bg-white text-black" value="">All Priorities</option>
+                <option className="bg-white text-black" value="High">High</option>
+                <option className="bg-white text-black" value="Medium">Medium</option>
+                <option className="bg-white text-black" value="Low">Low</option>
+              </select>
             </div>
             <div className="flex gap-4">
               <button onClick={handleClearAll} disabled={clearAlertsMutation.isPending} className="px-4 py-2 rounded-lg bg-black/10 dark:bg-white/10 text-black/80 dark:text-white/80 text-sm font-medium hover:bg-black/20 dark:hover:bg-white/20">

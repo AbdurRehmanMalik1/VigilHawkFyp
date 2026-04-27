@@ -343,6 +343,10 @@ export default function SingleCamera() {
                 <span className="font-medium">Allowed Persons:</span>
                 <span>{cameraConfig?.persons_allowed}</span>
               </div>
+              <div className="flex justify-between mb-1">
+                <span className="font-medium">Allowed Weapons:</span>
+                <span>{cameraConfig?.weapons_allowed}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="font-medium">Allowed Time Range:</span>
                 <span>{cameraConfig?.allowed_time_range_from} - {cameraConfig?.allowed_time_range_to}</span>

@@ -1,6 +1,7 @@
 from beanie import PydanticObjectId
 from fastapi import APIRouter, HTTPException, Query, Request
 from typing import List, Optional
+from datetime import datetime, timedelta
 from app.models import Alert, Camera, CameraConfiguration, Log
 from app.logger.dto import AlertItemOut, AlertDeleteRequest
 from beanie.operators import NE, In, Set
@@ -63,6 +64,12 @@ async def list_alerts(
     skip: int = Query(0, ge=0, description="Number of alerts to skip"),
     limit: int = Query(10, ge=1, le=100, description="Maximum number of alerts to return"),
     searchString: Optional[str] = Query(None, description="Filter by camera name or location"),
+    priority: Optional[str] = Query(None, description="Filter by priority level (High, Medium, Low)"),
+    threatType: Optional[str] = Query(
+        None, description="Filter by threat type: weapon, person, both, or neither"
+    ),
+    fromDate: Optional[str] = Query(None, description="Filter alerts from date (YYYY-MM-DD)"),
+    toDate: Optional[str] = Query(None, description="Filter alerts to date (YYYY-MM-DD)"),
 ):
     user = request.state.user
     user_cameras = await Camera.find(Camera.registered_by == user.id).to_list()
@@ -93,6 +100,28 @@ async def list_alerts(
         .to_list()
     )
 
+    from_datetime = None
+    to_datetime = None
+    if fromDate:
+        try:
+            from_datetime = datetime.strptime(fromDate, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid fromDate format. Use YYYY-MM-DD")
+    if toDate:
+        try:
+            to_datetime = datetime.strptime(toDate, "%Y-%m-%d") + timedelta(days=1)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid toDate format. Use YYYY-MM-DD")
+
+    priority_filter = priority.lower() if priority else None
+    threat_filter = threatType.lower() if threatType else None
+    valid_threat_filters = {"weapon", "person", "both", "neither"}
+    if threat_filter and threat_filter not in valid_threat_filters:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid threatType. Use one of: weapon, person, both, neither",
+        )
+
     result = []
     camera_config_cache: dict[str, CameraConfiguration] = {}
 
@@ -120,6 +149,23 @@ async def list_alerts(
             if alert.detections and alert.violation_reasons
             else ["Suspicious Activity Detected"]
         )
+
+        if priority_filter and priority.lower() != priority_filter:
+            continue
+        detection_classes = {d.class_name.lower() for d in alert.detections if d.class_name}
+        has_weapon = "weapon" in detection_classes
+        has_person = "person" in detection_classes
+
+        if threat_filter == "weapon" and not has_weapon:
+            continue
+        if threat_filter == "person" and not has_person:
+            continue
+        if threat_filter == "both" and not (has_weapon and has_person):
+            continue
+        if from_datetime and alert.timestamp < from_datetime:
+            continue
+        if to_datetime and alert.timestamp >= to_datetime:
+            continue
 
         confidence = max((d.confidence for d in alert.detections), default=0.0)
 

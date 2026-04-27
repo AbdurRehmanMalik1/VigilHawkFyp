@@ -41,6 +41,7 @@ export default function CameraConfigurationDetail() {
         ...data,
         // Convert -1 persons_allowed to 0
         persons_allowed: data.persons_allowed === -1 ? 0 : data.persons_allowed,
+        weapons_allowed: data.weapons_allowed === -1 ? 0 : data.weapons_allowed,
         // Ensure time strings are in HH:MM:SS format
         allowed_time_range_from: data.allowed_time_range_from
           ? data.allowed_time_range_from.length === 5
@@ -55,12 +56,16 @@ export default function CameraConfigurationDetail() {
       };
       if (payload.persons_allowed == -1)
         payload.persons_allowed = 0;
+      if (payload.weapons_allowed == -1)
+        payload.weapons_allowed = 0;
       return updateCameraConfigurationAPI(camera_id, payload);
     },
     onSuccess: (data) => {
       const result = { ...data };
       if (data.persons_allowed == 0)
         result.persons_allowed = -1;
+      if (data.weapons_allowed == 0)
+        result.weapons_allowed = -1;
 
       setCameraConfig(result);
       setOriginalConfig(result);
@@ -145,6 +150,35 @@ export default function CameraConfigurationDetail() {
                   />
                   <span className="font-medium text-white w-8 text-center">
                     {cameraConfig?.persons_allowed === -1 ? 0 : cameraConfig?.persons_allowed || 1}
+                  </span>
+                </div>
+              </div>
+
+              {/* Weapons Allowed */}
+              <div className="bg-background-dark p-4 rounded-lg border border-gray-700/50 transition-all hover:border-primary/50">
+                <label className="block font-medium text-white mb-2" htmlFor="weapons-allowed">
+                  Weapons Allowed
+                </label>
+                <div className="flex items-center gap-4">
+                  <input
+                    id="weapons-allowed"
+                    type="range"
+                    min={-1}
+                    max={10}
+                    step={1}
+                    value={cameraConfig?.weapons_allowed || 0}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      setCameraConfig(prev =>
+                        prev
+                          ? { ...prev, weapons_allowed: val }
+                          : prev
+                      );
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg cursor-pointer appearance-none"
+                  />
+                  <span className="font-medium text-white w-8 text-center">
+                    {cameraConfig?.weapons_allowed === -1 ? 0 : cameraConfig?.weapons_allowed || 0}
                   </span>
                 </div>
               </div>
@@ -252,6 +286,8 @@ export default function CameraConfigurationDetail() {
                       ...cameraConfig,
                       persons_allowed:
                         cameraConfig.persons_allowed === -1 ? 0 : cameraConfig.persons_allowed,
+                      weapons_allowed:
+                        cameraConfig.weapons_allowed === -1 ? 0 : cameraConfig.weapons_allowed,
                     };
                     updateCameraConfig(dataToUpdate);
                   }

@@ -33,6 +33,7 @@ class CameraConfigCreate(BaseModel):
     camera_id: PydanticObjectId
     ai_detection: bool
     persons_allowed: int  # must be >= 0, can enforce via validator if needed
+    weapons_allowed: int
     alert_priority: Literal["High", "Medium", "Low"]
     dashboard_alerts: bool
     email_alerts: bool
@@ -43,6 +44,7 @@ class CameraConfigCreate(BaseModel):
 class CameraConfigUpdate(BaseModel):
     ai_detection: Optional[bool] = None
     persons_allowed: Optional[int] = None
+    weapons_allowed: Optional[int] = None
     alert_priority: Optional[Literal["High", "Medium", "Low"]] = None
     dashboard_alerts: Optional[bool] = None
     email_alerts: Optional[bool] = None

@@ -59,6 +59,10 @@ export interface FetchAlertsParams {
   limit: number;
   skip: number;
   searchString: string;
+  priority?: "High" | "Medium" | "Low";
+  threatType?: "weapon" | "person" | "both" | "neither";
+  fromDate?: string;
+  toDate?: string;
 }
 
 // API function

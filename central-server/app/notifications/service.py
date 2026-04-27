@@ -46,8 +46,10 @@ def check_violation(config: CameraConfiguration, detections: list) -> dict:
         return {"violation": False, "reasons": ["AI detection disabled"]}
 
     person_count = sum(1 for d in detections if d.get("class_name") == "person")
+    weapon_count = sum(1 for d in detections if d.get("class_name") == "weapon")
 
     person_exceeded = False
+    weapon_exceeded = False
 
     if person_count > config.persons_allowed:
         violations.append(
@@ -55,8 +57,14 @@ def check_violation(config: CameraConfiguration, detections: list) -> dict:
         )
         person_exceeded = True
 
+    if weapon_count > config.weapons_allowed:
+        violations.append(
+            f"Weapon limit exceeded ({weapon_count}/{config.weapons_allowed})"
+        )
+        weapon_exceeded = True
+
     if (
-        person_exceeded
+        (person_exceeded or weapon_exceeded)
         and config.allowed_time_range_from
         and config.allowed_time_range_to
     ):

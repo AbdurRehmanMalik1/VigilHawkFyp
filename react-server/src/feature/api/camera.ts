@@ -15,6 +15,7 @@ export interface CameraConfiguration {
   camera_id: string;
   ai_detection: boolean;
   persons_allowed: number;
+  weapons_allowed: number;
   alert_priority: "High" | "Medium" | "Low";
   dashboard_alerts: boolean;
   email_alerts: boolean;

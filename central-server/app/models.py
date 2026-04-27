@@ -40,6 +40,7 @@ class CameraConfiguration(Document):
     camera_id: PydanticObjectId
     ai_detection: bool = Field(default=True)
     persons_allowed: int = Field(default=1, ge=0)
+    weapons_allowed: int = Field(default=0, ge=0)
     alert_priority: Literal["High", "Medium", "Low"] = Field(default="Medium")
     dashboard_alerts: bool = Field(default=True)
     email_alerts: bool = Field(default=False)
