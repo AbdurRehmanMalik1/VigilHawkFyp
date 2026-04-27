@@ -3,7 +3,7 @@ import datetime
 import os
 import time
 import cv2
-import numpy as np
+import torch
 from app.utils.logging import async_log_detection as log_detection  # async function
 from ultralytics import YOLO  # type: ignore
 
@@ -12,6 +12,14 @@ model_path: str = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "models", "
 
 model = YOLO(model_path)
 
+
+def get_device():
+    if torch.cuda.is_available():
+        print("🔥 GPU detected:", torch.cuda.get_device_name(0))
+        return "cuda:0"
+    else:
+        print("⚠️ GPU NOT available, falling back to CPU")
+        return "cpu"
 
 def makeTimeStamp():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -264,6 +272,10 @@ async def generate_frames_rtsp(camera_url: str, width: int, height: int, cap: cv
 def generate_frames(camera_url: str, camera_id: str, jpeg_quality: int = 50):
     if model is None:
         raise RuntimeError("Model not loaded")
+    
+    device = get_device()
+
+    model.to(device)
 
     cap = cv2.VideoCapture(camera_url)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
@@ -317,17 +329,17 @@ def generate_frames(camera_url: str, camera_id: str, jpeg_quality: int = 50):
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 class_name = model.names[cls_id]
 
-                # if class_name == 'person':
-                #     color = (255, 0, 0)
-                # elif class_name == 'weapon':
-                #     color = (0, 0, 255)
-                # else:
-                #     color = (0, 255, 0)
+                if class_name == 'person':
+                    color = (255, 0, 0)
+                elif class_name == 'weapon':
+                    color = (0, 0, 255)
+                else:
+                    color = (0, 255, 0)
 
-                # cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                # label = f"{class_name} {conf:.2f}"
-                # cv2.putText(frame, label, (x1, y1 - 5),
-                #             cv2.FONT_HERSHEY_PLAIN, 5, color, 2)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                label = f"{class_name} {conf:.2f}"
+                cv2.putText(frame, label, (x1, y1 - 5),
+                            cv2.FONT_HERSHEY_PLAIN, 5, color, 2)
 
 
                 detection_list.append({

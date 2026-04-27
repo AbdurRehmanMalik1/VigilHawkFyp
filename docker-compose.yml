@@ -25,6 +25,7 @@ services:
     environment:
       MONGO_URI: ${MONGO_URI}
     restart: unless-stopped
+    gpus: all
 
   react-server:
     build: ./react-server
